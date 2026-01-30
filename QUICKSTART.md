@@ -40,7 +40,7 @@ npm run prisma:migrate
 npm run prisma:seed
 
 # Start dev server
-npm run dev
+
 
 # Open http://localhost:3000
 # Login: demo@billetixx.com / demo123

@@ -16,7 +16,8 @@ A comprehensive financial management dashboard built with Next.js 15, TypeScript
 - 🌙 **Dark Mode**: Full dark/light theme support with next-themes
 - 🎨 **Modern UI**: Built with TailwindCSS and shadcn/ui components
 - 🐳 **Docker Support**: Easy deployment with Docker and Docker Compose
-- 🔄 **REST API**: Complete CRUD operations for all entities
+- � **GitHub Codespaces**: [Quick Start in Codespaces](CODESPACES.md)
+- �🔄 **REST API**: Complete CRUD operations for all entities
 - 📱 **Responsive**: Mobile-friendly design
 
 ## Tech Stack

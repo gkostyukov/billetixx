@@ -25,7 +25,10 @@ export async function POST(req: NextRequest) {
     if (!user) return unauthorizedResponse()
 
     const data = await req.json()
-    const { name, lastFourDigits, creditLimit, currentBalance, dueDate, bank, cardType } = data
+    const { 
+      name, lastFourDigits, creditLimit, balance, currentBalance, dueDate, bank, cardType,
+      minPayment, apr, statementBalance, autopay, autopayAccountId 
+    } = data
 
     if (!name || !lastFourDigits || !creditLimit || !dueDate) {
       return errorResponse("Name, last four digits, credit limit, and due date are required", 400)
@@ -36,10 +39,15 @@ export async function POST(req: NextRequest) {
         name,
         lastFourDigits,
         creditLimit: parseFloat(creditLimit),
-        currentBalance: currentBalance ? parseFloat(currentBalance) : 0,
+        balance: balance ? parseFloat(balance) : (currentBalance ? parseFloat(currentBalance) : 0),
         dueDate: parseInt(dueDate),
         bank,
         cardType,
+        minPayment: minPayment ? parseFloat(minPayment) : 0,
+        apr: apr ? parseFloat(apr) : 0,
+        statementBalance: statementBalance ? parseFloat(statementBalance) : 0,
+        autopay: autopay ? Boolean(autopay) : false,
+        autopayAccountId: autopayAccountId || null,
         userId: user.id,
       }
     })
@@ -57,7 +65,21 @@ export async function PUT(req: NextRequest) {
     if (!user) return unauthorizedResponse()
 
     const data = await req.json()
-    const { id, ...updateData } = data
+    const { 
+      id, 
+      name, 
+      lastFourDigits, 
+      creditLimit, 
+      balance, 
+      dueDate, 
+      bank, 
+      cardType, 
+      minPayment, 
+      apr, 
+      statementBalance, 
+      autopay,
+      autopayAccountId 
+    } = data
 
     if (!id) return errorResponse("Credit card ID is required", 400)
 
@@ -68,7 +90,20 @@ export async function PUT(req: NextRequest) {
 
     const creditCard = await prisma.creditCard.update({
       where: { id },
-      data: updateData
+      data: {
+        name,
+        lastFourDigits,
+        creditLimit,
+        balance,
+        dueDate,
+        bank,
+        cardType,
+        minPayment,
+        apr,
+        statementBalance,
+        autopay,
+        autopayAccountId: autopayAccountId || null
+      }
     })
 
     return NextResponse.json(creditCard)

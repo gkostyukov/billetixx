@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (!user) return unauthorizedResponse()
 
     const data = await req.json()
-    const { title, amount, dueDate, status, category, description } = data
+    const { title, amount, dueDate, dueDayOfMonth, status, category, description, fromSource, sourceType, sourceId, balance, minPayment, active, fullyPaid } = data
 
     if (!title || !amount || !dueDate) {
       return errorResponse("Title, amount, and due date are required", 400)
@@ -38,9 +38,17 @@ export async function POST(req: NextRequest) {
         title,
         amount: parseFloat(amount),
         dueDate: new Date(dueDate),
+        dueDayOfMonth: dueDayOfMonth ? parseInt(dueDayOfMonth) : undefined,
         status: status || "pending",
         category,
         description,
+        fromSource,
+        sourceType,
+        sourceId,
+        balance: balance ? parseFloat(balance) : undefined,
+        minPayment: minPayment ? parseFloat(minPayment) : undefined,
+        active: active ?? true,
+        fullyPaid: fullyPaid ?? false,
         userId: user.id,
       }
     })
@@ -59,7 +67,7 @@ export async function PUT(req: NextRequest) {
     if (!user) return unauthorizedResponse()
 
     const data = await req.json()
-    const { id, title, amount, dueDate, status, category, description } = data
+    const { id, title, amount, dueDate, dueDayOfMonth, status, category, description, fromSource, sourceType, sourceId, balance, minPayment, active, fullyPaid } = data
 
     if (!id) {
       return errorResponse("Bill ID is required", 400)
@@ -80,9 +88,17 @@ export async function PUT(req: NextRequest) {
         ...(title && { title }),
         ...(amount && { amount: parseFloat(amount) }),
         ...(dueDate && { dueDate: new Date(dueDate) }),
+        ...(dueDayOfMonth !== undefined && { dueDayOfMonth: dueDayOfMonth ? parseInt(dueDayOfMonth) : null }),
         ...(status && { status }),
         ...(category && { category }),
         ...(description !== undefined && { description }),
+        ...(fromSource !== undefined && { fromSource }),
+        ...(sourceType !== undefined && { sourceType }),
+        ...(sourceId !== undefined && { sourceId }),
+        ...(balance !== undefined && { balance: balance ? parseFloat(balance) : null }),
+        ...(minPayment !== undefined && { minPayment: minPayment ? parseFloat(minPayment) : null }),
+        ...(active !== undefined && { active }),
+        ...(fullyPaid !== undefined && { fullyPaid }),
       }
     })
 

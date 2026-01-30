@@ -40,7 +40,7 @@ interface CreditCard {
   id: string
   name: string
   lastFourDigits: string
-  currentBalance: number
+  balance: number
   creditLimit: number
 }
 
@@ -136,21 +136,67 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="border-b bg-white dark:bg-gray-800">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Billetixx Dashboard</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Welcome back, {session?.user?.name || session?.user?.email}</p>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Billetixx Dashboard</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Welcome back, {session?.user?.name || session?.user?.email}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              >
+                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+              <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
+                Sign Out
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex gap-2 mt-4">
             <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              variant="ghost"
+              onClick={() => router.push("/dashboard")}
+              className="font-medium"
             >
-              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              Dashboard
             </Button>
-            <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
-              Sign Out
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/bills")}
+              className="font-medium"
+            >
+              Bills
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/payments")}
+              className="font-medium"
+            >
+              Payments
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/bank-accounts")}
+              className="font-medium"
+            >
+              Bank Accounts
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/credit-cards")}
+              className="font-medium"
+            >
+              Credit Cards
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/categories")}
+              className="font-medium"
+            >
+              Categories
             </Button>
           </div>
         </div>
@@ -306,7 +352,7 @@ export default function Dashboard() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">${card.currentBalance.toFixed(2)}</p>
+                      <p className="font-medium">${card.balance.toFixed(2)}</p>
                       <p className="text-sm text-gray-500">
                         Limit: ${card.creditLimit.toFixed(2)}
                       </p>

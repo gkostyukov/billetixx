@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Project Setup",
+            "type": "shell",
+            "command": "bash setup.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Start Dev Server",
+            "type": "shell",
+            "command": "npm run dev",
+            "isBackground": true,
+            "problemMatcher": []
+        }
+    ]
+}

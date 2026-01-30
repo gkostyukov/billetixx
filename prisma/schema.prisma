@@ -23,8 +23,23 @@ model User {
   creditCards   CreditCard[]
   incomes       Income[]
   debts         Debt[]
+  bankAccounts  BankAccount[]
   accounts      Account[]
   sessions      Session[]
+}
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  name          String
+  bankName      String?
+  accountLast4  String
+  cardLast4     String?
+  active        Boolean  @default(true)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  creditCards   CreditCard[]
 }
 
 model Account {
@@ -62,32 +77,59 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model Bill {
+model Category {
   id          String   @id @default(cuid())
-  title       String
-  amount      Float
-  dueDate     DateTime
-  status      String   @default("pending") // pending, paid, overdue
-  category    String?
+  name        String   @unique
   description String?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
+model Bill {
+  id               String   @id @default(cuid())
+  title            String   // from_source in old schema
+  amount           Float    // balance in old schema
+  dueDate          DateTime
+  dueDayOfMonth    Int?     // day of month (1-31)
+  status           String   @default("pending") // pending, paid, overdue
+  category         String?
+  description      String?
+  comment          String?
+  fromSource       String?  // payment source account name
+  sourceType       String?  // 'BankAccount' | 'CreditCard'
+  sourceId         String?  // ID of the source entity
+  balance          Float?   // current balance
+  minPayment       Float?   // minimum payment amount
+  active           Boolean  @default(true)
+  fullyPaid        Boolean  @default(false)
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 model Payment {
-  id          String   @id @default(cuid())
-  title       String
-  amount      Float
-  paymentDate DateTime
-  method      String   // cash, card, transfer, etc.
-  category    String?
-  description String?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  description  String   @default("")
+  comment      String?
+  dueDate      DateTime?
+  amount       Float    @default(0)
+  fromSource   String?  // banking account source
+  sourceType   String?  // 'expense' | 'bill'
+  sourceRefId  String?  // ID from source table
+  balance      Float?   @default(0)
+  minPayment   Float?   @default(0)
+  autopay      Boolean? @default(false)
+  billId       String?  // reference to Bill if created from bill
+  paid         Boolean  @default(false)
+  isIncome     Boolean  @default(false)
+  active       Boolean  @default(true)
+  category     String?
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Expense {
@@ -105,18 +147,30 @@ model Expense {
 }
 
 model CreditCard {
-  id            String   @id @default(cuid())
-  name          String
-  lastFourDigits String
-  creditLimit   Float
-  currentBalance Float   @default(0)
-  dueDate       Int      // day of month
-  bank          String?
-  cardType      String?  // visa, mastercard, amex, etc.
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String   // Card nickname/description
+  number           String?  // Last 4 digits only for security
+  lastFourDigits   String   // Last 4 digits
+  balance          Float    @default(0)  // Current balance
+  statementBalance Float?   @default(0)  // Statement balance
+  creditLimit      Float    // Credit limit
+  availableCredit  Float?   @default(0)  // Available credit
+  dueDate          Int      // Day of month (1-31)
+  nextDueDate      DateTime? // Next payment due date
+  apr              Float?   @default(0)  // Annual Percentage Rate
+  minPayment       Float?   @default(0)  // Minimum payment amount
+  autopay          Boolean  @default(false)
+  autopayAccountId String?
+  autopayAccount   BankAccount? @relation(fields: [autopayAccountId], references: [id])
+  active           Boolean  @default(true)
+  notes            String?  // Additional notes
+  bank             String?  // Bank/issuer name
+  cardType         String?  // visa, mastercard, amex, discover
+  rewardsProgram   String?  // Rewards program details
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model Income {
