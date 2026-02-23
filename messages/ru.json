@@ -47,6 +47,7 @@
         "engineStrategy": "Стратегия",
         "engineStrategySwitchError": "Не удалось переключить стратегию",
         "engineStrategySwitched": "Стратегия переключена на {strategy}.",
+        "engineStrategyRecommended": "AI рекомендует стратегию {strategy}. Она применена автоматически.",
         "engineProfileStrict": "Строгий",
         "engineProfileSoft": "Мягкий",
         "engineProfileActive": "Профиль",

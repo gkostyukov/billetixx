@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
 type TradeAction = 'BUY' | 'SELL' | 'WAIT';
+type StrategyId = 'h1_trend_m15_pullback' | 'breakout_v1' | 'flat_range_v1';
 
 function parsePrice(text: string, pattern: RegExp): number | null {
     const match = text.match(pattern);
@@ -30,6 +31,29 @@ function buildModelChain(): string[] {
         .filter(Boolean);
 
     return Array.from(new Set([primary, ...fallbacks]));
+}
+
+function detectRecommendedStrategy(analysis: string): { id: StrategyId; reason: string } {
+    const text = (analysis || '').toLowerCase();
+
+    if (/(flat|range|sideways|mean reversion|боковик|флэт|флет|диапазон)/i.test(text)) {
+        return {
+            id: 'flat_range_v1',
+            reason: 'Range/flat market context detected in analysis.',
+        };
+    }
+
+    if (/(breakout|пробой|импульсный пробой)/i.test(text)) {
+        return {
+            id: 'breakout_v1',
+            reason: 'Breakout context detected in analysis.',
+        };
+    }
+
+    return {
+        id: 'h1_trend_m15_pullback',
+        reason: 'Trend/pullback context selected as default strategy.',
+    };
 }
 
 export async function POST(request: NextRequest) {
@@ -112,6 +136,7 @@ Candles (последние 10): ${JSON.stringify(chartData.slice(-10))}
         }
 
         const analysis = completion.choices[0].message.content || 'AI did not return analysis text.';
+        const recommendedStrategy = detectRecommendedStrategy(analysis);
 
         const action = detectAction(analysis);
         const entryPrice = parsePrice(analysis, /(?:entry|вход)\s*[:=\-]?\s*([0-9]+[\.,]?[0-9]*)/i)
@@ -145,7 +170,14 @@ Candles (последние 10): ${JSON.stringify(chartData.slice(-10))}
                 timeframe: signal.timeframe,
             }];
 
-        return NextResponse.json({ analysis, signal, recommendedOrders, modelUsed });
+        return NextResponse.json({
+            analysis,
+            signal,
+            recommendedOrders,
+            modelUsed,
+            recommendedStrategyId: recommendedStrategy.id,
+            recommendedStrategyReason: recommendedStrategy.reason,
+        });
     } catch (error: any) {
         console.error('OpenAI Analysis Error:', error?.message || error);
 

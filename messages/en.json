@@ -47,6 +47,7 @@
         "engineStrategy": "Strategy",
         "engineStrategySwitchError": "Failed to switch strategy",
         "engineStrategySwitched": "Strategy switched to {strategy}.",
+        "engineStrategyRecommended": "AI recommends strategy {strategy}. It was applied automatically.",
         "engineProfileStrict": "Strict",
         "engineProfileSoft": "Soft",
         "engineProfileActive": "Profile",

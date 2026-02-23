@@ -789,6 +789,12 @@ export default function TradingDashboard() {
             const analysis: string = aiData.analysis;
             setAiAnalysis(analysis);
 
+            const recommendedStrategyId = String(aiData?.recommendedStrategyId || '').trim();
+            if (recommendedStrategyId) {
+                await updateStrategy(recommendedStrategyId);
+                setEngineMessage(t('engineStrategyRecommended', { strategy: recommendedStrategyId }));
+            }
+
             const recommended = aiData?.recommendedOrders?.[0] || aiData?.signal;
             if (recommended) {
                 setOrderTicket((prev) => ({
