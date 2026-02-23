@@ -686,6 +686,28 @@ export default function TradingDashboard() {
         }
     };
 
+    const handleClosePosition = async (instrument: string) => {
+        const confirmed = window.confirm(t('confirmCloseTrade', { instrument: formatInstrumentLabel(instrument) }));
+        if (!confirmed) return;
+
+        const key = `position:${instrument}`;
+        setActionLoadingKey(key);
+        try {
+            const res = await fetch('/api/oanda/positions/close', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ instrument }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || t('errorCloseTrade'));
+            await fetchWorkspace();
+        } catch (err: any) {
+            setError(err?.message || t('errorCloseTrade'));
+        } finally {
+            setActionLoadingKey(null);
+        }
+    };
+
     const handlePlaceOrder = async () => {
         setOrderMessage(null);
         if (!orderTicket.units || Number(orderTicket.units) <= 0) {
@@ -1614,12 +1636,34 @@ export default function TradingDashboard() {
 
                             {workspaceTab === 'positions' && (
                                 <div>
-                                    {positions.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoOpenPositions')}</p> : positions.map((item) => (
-                                        <div key={item.instrument} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs flex justify-between">
-                                            <span className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</span>
-                                            <span className={parseFloat(item.unrealizedPL || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'}>{parseFloat(item.unrealizedPL || '0').toFixed(2)}</span>
-                                        </div>
-                                    ))}
+                                    {positions.length === 0 ? (
+                                        <p className="text-xs text-gray-500 p-3">{t('workspaceNoOpenPositions')}</p>
+                                    ) : positions.map((item) => {
+                                        const longUnits = Number(item.long?.units || 0);
+                                        const shortUnits = Number(item.short?.units || 0);
+                                        const netUnits = longUnits - shortUnits;
+                                        const direction = netUnits > 0 ? 'LONG' : netUnits < 0 ? 'SHORT' : 'FLAT';
+                                        const pl = parseFloat(item.unrealizedPL || '0');
+
+                                        return (
+                                            <div key={item.instrument} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs flex justify-between gap-3">
+                                                <div>
+                                                    <p className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</p>
+                                                    <p className="text-[11px] text-gray-400">{direction} · net={netUnits} · long={longUnits} · short={shortUnits}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={pl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{pl.toFixed(2)}</span>
+                                                    <button
+                                                        onClick={() => handleClosePosition(item.instrument)}
+                                                        disabled={actionLoadingKey === `position:${item.instrument}`}
+                                                        className="text-[11px] px-2 py-1 rounded border border-red-800 text-red-300 hover:bg-red-900/40 disabled:opacity-50"
+                                                    >
+                                                        {actionLoadingKey === `position:${item.instrument}` ? '...' : t('workspaceClose')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
 
