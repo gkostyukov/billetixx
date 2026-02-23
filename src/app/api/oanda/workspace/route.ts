@@ -29,9 +29,25 @@ export async function GET(request: NextRequest) {
         ]);
 
         const trades = tradesResult.status === 'fulfilled' ? tradesResult.value.data?.trades || [] : [];
-        const orders = ordersResult.status === 'fulfilled' ? ordersResult.value.data?.orders || [] : [];
+        const rawOrders = ordersResult.status === 'fulfilled' ? ordersResult.value.data?.orders || [] : [];
         const positions = positionsResult.status === 'fulfilled' ? positionsResult.value.data?.positions || [] : [];
         const transactions = activityResult.status === 'fulfilled' ? activityResult.value.data?.transactions || [] : [];
+
+        const tradeInstrumentById = new Map<string, string>();
+        trades.forEach((trade: any) => {
+            if (trade?.id && trade?.instrument) {
+                tradeInstrumentById.set(String(trade.id), String(trade.instrument));
+            }
+        });
+
+        const orders = rawOrders.map((order: any) => {
+            const tradeId = String(order?.tradeID || order?.tradeId || order?.relatedTradeID || order?.relatedTradeId || '');
+            const instrument = String(order?.instrument || tradeInstrumentById.get(tradeId) || '');
+            return {
+                ...order,
+                instrument,
+            };
+        });
 
         return NextResponse.json({
             account,
