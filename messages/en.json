@@ -203,6 +203,7 @@
     "Settings": {
         "title": "API Settings",
         "description": "Configure your external API connections for trading.",
+        "tradingSettingsLink": "Go to trading settings",
         "environment": "Oanda Environment",
         "practice": "Practice (Demo)",
         "live": "Live Account",

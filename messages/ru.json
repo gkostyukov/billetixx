@@ -203,6 +203,7 @@
     "Settings": {
         "title": "Настройки API",
         "description": "Настройте подключения к внешним API для трейдинга.",
+        "tradingSettingsLink": "Настройки торговли",
         "environment": "Окружение Oanda",
         "practice": "Практика (Demo)",
         "live": "Реальный счет (Live)",

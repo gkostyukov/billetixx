@@ -1,10 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 export default function ApiSettingsPage() {
     const t = useTranslations('Settings');
+    const locale = useLocale();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
@@ -75,6 +77,12 @@ export default function ApiSettingsPage() {
             <div>
                 <h1 className="text-3xl font-bold tracking-tight text-white">{t('title')}</h1>
                 <p className="text-gray-400 mt-2">{t('description')}</p>
+                <Link
+                    href={`/${locale}\settings/trading`}
+                    className="inline-flex items-center text-sm font-medium mt-2 text-blue-400 hover:text-blue-200"
+                >
+                    {t('tradingSettingsLink')} →
+                </Link>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6 bg-gray-900 border border-gray-800 rounded-lg p-6 shadow-md">
