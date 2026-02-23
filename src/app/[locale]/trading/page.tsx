@@ -194,6 +194,29 @@ function formatInstrumentLabel(value: unknown): string {
     return value.replace('_', '/');
 }
 
+function sideFromUnits(units: unknown): 'BUY' | 'SELL' | 'FLAT' {
+    const n = Number(units || 0);
+    if (n > 0) return 'BUY';
+    if (n < 0) return 'SELL';
+    return 'FLAT';
+}
+
+function badgeClassForSide(side: 'BUY' | 'SELL' | 'FLAT'): string {
+    if (side === 'BUY') return 'border-emerald-700 bg-emerald-900/30 text-emerald-300';
+    if (side === 'SELL') return 'border-red-700 bg-red-900/30 text-red-300';
+    return 'border-gray-700 bg-gray-900/40 text-gray-300';
+}
+
+function badgeClassForOrderType(type: string): string {
+    const t = String(type || '').toUpperCase();
+    if (t.includes('TAKE_PROFIT')) return 'border-emerald-700 bg-emerald-900/30 text-emerald-300';
+    if (t.includes('STOP_LOSS')) return 'border-red-700 bg-red-900/30 text-red-300';
+    if (t.includes('TRAILING')) return 'border-yellow-700 bg-yellow-900/20 text-yellow-300';
+    if (t.includes('LIMIT')) return 'border-blue-700 bg-blue-900/20 text-blue-300';
+    if (t.includes('STOP')) return 'border-orange-700 bg-orange-900/20 text-orange-300';
+    return 'border-gray-700 bg-gray-900/40 text-gray-300';
+}
+
 function getMidFromPricing(pricing: any): number | null {
     const ask = Number(pricing?.asks?.[0]?.price ?? NaN);
     const bid = Number(pricing?.bids?.[0]?.price ?? NaN);
@@ -1727,8 +1750,20 @@ export default function TradingDashboard() {
                                     {trades.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoOpenTrades')}</p> : trades.map((item) => (
                                         <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs flex justify-between">
                                             <div>
-                                                <p className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</p>
+                                                    {(() => {
+                                                        const side = sideFromUnits(item.currentUnits);
+                                                        if (side === 'FLAT') return null;
+                                                        return (
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForSide(side)}`}>
+                                                                {side}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </div>
                                                 <p className={parseFloat(item.unrealizedPL || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'}>{parseFloat(item.unrealizedPL || '0').toFixed(2)}</p>
+                                                <p className="text-[10px] text-gray-500">units: {Math.abs(Number(item.currentUnits || 0))}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button
@@ -1757,7 +1792,12 @@ export default function TradingDashboard() {
                                         <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs flex justify-between">
                                             <div>
                                                 <p className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</p>
-                                                <p className="text-gray-400">{item.type}{item.displayPrice ? ` @ ${item.displayPrice}` : ''}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
+                                                        {item.type}
+                                                    </span>
+                                                    <p className="text-gray-400">{item.displayPrice ? `@ ${item.displayPrice}` : ''}</p>
+                                                </div>
                                                 {item.tradeId ? (
                                                     <p className="text-[10px] text-gray-500">trade #{item.tradeId}</p>
                                                 ) : null}
@@ -1811,7 +1851,12 @@ export default function TradingDashboard() {
                                 <div>
                                     {activity.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoActivity')}</p> : activity.map((item) => (
                                         <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs">
-                                            <p className="text-gray-200">{item.type}{item.instrument ? ` · ${formatInstrumentLabel(item.instrument)}` : ''}</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
+                                                    {item.type}
+                                                </span>
+                                                <p className="text-gray-200">{item.instrument ? formatInstrumentLabel(item.instrument) : ''}</p>
+                                            </div>
                                             {item.details ? (
                                                 <p className="text-[11px] text-gray-400 line-clamp-2">{item.details}</p>
                                             ) : null}
