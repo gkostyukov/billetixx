@@ -10,6 +10,6 @@ export const ENGINE_CONFIG = {
   fixedUnits: 1000,
   riskPerTradeUsd: 6,
   targetProfitUsd: 2.5,
-  minRiskReward: 1.5,
-  maxSpreadToSlRatio: 0.2,
+  minRiskReward: 1.2,
+  maxSpreadToSlRatio: 0.3,
 } as const;

@@ -29,6 +29,7 @@ function normalizeRiskReward(rr: number): number {
   if (rr >= 2.0) return 1.0;
   if (rr >= 1.5) return 0.8;
   if (rr >= 1.2) return 0.5;
+  if (rr >= 1.1) return 0.3;
   return -1;
 }
 
@@ -49,6 +50,7 @@ function spreadQuality(spreadPips: number, slPips: number): number {
   const ratio = slPips > 0 ? spreadPips / slPips : 1;
   if (ratio <= 0.1) return 1.0;
   if (ratio <= 0.2) return 0.7;
+  if (ratio <= 0.3) return 0.4;
   return -1;
 }
 
@@ -129,12 +131,12 @@ export function calculateScore(
   const rrNormalized = normalizeRiskReward(rr);
 
   if (rrNormalized < 0) {
-    rejectionReasons.push(`Risk:Reward ${rr.toFixed(2)} below scoring floor 1.2.`);
+    rejectionReasons.push(`Risk:Reward ${rr.toFixed(2)} below scoring floor 1.1.`);
   }
 
   const spreadScore = spreadQuality(context.spread_pips, slPips);
   if (spreadScore < 0) {
-    rejectionReasons.push('Spread exceeds 20% of stop-loss distance (scoring filter).');
+    rejectionReasons.push('Spread exceeds 30% of stop-loss distance (scoring filter).');
   }
 
   if (rejectionReasons.length) {

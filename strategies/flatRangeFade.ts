@@ -90,20 +90,20 @@ export const flatRangeFadeStrategy: StrategyPlugin = {
     properties: {
       units: { type: 'number', description: 'Fixed units per trade', default: 1000 },
       rangeWindowBars: { type: 'number', description: 'Bars for range detection', default: 32 },
-      atrMaxPips: { type: 'number', description: 'Max ATR(14) in pips for flat regime', default: 8 },
+      atrMaxPips: { type: 'number', description: 'Max ATR(14) in pips for flat regime', default: 12 },
       minRangePips: { type: 'number', description: 'Minimum acceptable range size in pips', default: 8 },
-      maxRangePips: { type: 'number', description: 'Maximum acceptable range size in pips', default: 30 },
-      entryBandPips: { type: 'number', description: 'Distance to boundary for entry setup', default: 2 },
-      maxSpreadPips: { type: 'number', description: 'Maximum allowed spread', default: 1.5 },
-      slBufferPips: { type: 'number', description: 'Stop-loss buffer beyond range boundary', default: 1.5 },
+      maxRangePips: { type: 'number', description: 'Maximum acceptable range size in pips', default: 35 },
+      entryBandPips: { type: 'number', description: 'Distance to boundary for entry setup', default: 3 },
+      maxSpreadPips: { type: 'number', description: 'Maximum allowed spread', default: 2.2 },
+      slBufferPips: { type: 'number', description: 'Stop-loss buffer beyond range boundary', default: 1.7 },
       tpMode: { type: 'string', description: 'FIXED_TP_PIPS or MIDLINE', default: 'MIDLINE' },
-      tpPips: { type: 'number', description: 'Fixed TP distance (used in FIXED_TP_PIPS mode)', default: 8 },
-      minRiskReward: { type: 'number', description: 'Minimum RR threshold', default: 1.2 },
+      tpPips: { type: 'number', description: 'Fixed TP distance (used in FIXED_TP_PIPS mode)', default: 10 },
+      minRiskReward: { type: 'number', description: 'Minimum RR threshold', default: 1.1 },
       rsiEnabled: { type: 'boolean', description: 'Enable RSI filter', default: true },
       rsiPeriod: { type: 'number', description: 'RSI period', default: 14 },
-      rsiBuyMax: { type: 'number', description: 'RSI max for BUY setup', default: 35 },
-      rsiSellMin: { type: 'number', description: 'RSI min for SELL setup', default: 65 },
-      minTouchCount: { type: 'number', description: 'Min boundary touches for stable range', default: 3 },
+      rsiBuyMax: { type: 'number', description: 'RSI max for BUY setup', default: 45 },
+      rsiSellMin: { type: 'number', description: 'RSI min for SELL setup', default: 55 },
+      minTouchCount: { type: 'number', description: 'Min boundary touches for stable range', default: 2 },
       enableNewsWindowFilter: { type: 'boolean', description: 'Block trading around high-impact news', default: false },
       inNewsWindow: { type: 'boolean', description: 'External flag indicating news window', default: false },
     },
@@ -115,20 +115,20 @@ export const flatRangeFadeStrategy: StrategyPlugin = {
 
     const units = Math.max(1, Number(params.units ?? 1000));
     const rangeWindowBars = Math.max(20, Math.min(48, Number(params.rangeWindowBars ?? 32)));
-    const atrMaxPips = Number(params.atrMaxPips ?? 8);
+    const atrMaxPips = Number(params.atrMaxPips ?? 12);
     const minRangePips = Number(params.minRangePips ?? 8);
-    const maxRangePips = Number(params.maxRangePips ?? 30);
-    const entryBandPips = Number(params.entryBandPips ?? 2);
-    const maxSpreadPips = Number(params.maxSpreadPips ?? 1.5);
-    const slBufferPips = Number(params.slBufferPips ?? 1.5);
+    const maxRangePips = Number(params.maxRangePips ?? 35);
+    const entryBandPips = Number(params.entryBandPips ?? 3);
+    const maxSpreadPips = Number(params.maxSpreadPips ?? 2.2);
+    const slBufferPips = Number(params.slBufferPips ?? 1.7);
     const tpMode = String(params.tpMode ?? 'MIDLINE').toUpperCase() as TpMode;
-    const tpPips = Number(params.tpPips ?? 8);
-    const minRiskReward = Number(params.minRiskReward ?? 1.2);
+    const tpPips = Number(params.tpPips ?? 10);
+    const minRiskReward = Number(params.minRiskReward ?? 1.1);
     const rsiEnabled = Boolean(params.rsiEnabled ?? true);
     const rsiPeriod = Math.max(2, Number(params.rsiPeriod ?? 14));
-    const rsiBuyMax = Number(params.rsiBuyMax ?? 35);
-    const rsiSellMin = Number(params.rsiSellMin ?? 65);
-    const minTouchCount = Math.max(1, Number(params.minTouchCount ?? 3));
+    const rsiBuyMax = Number(params.rsiBuyMax ?? 45);
+    const rsiSellMin = Number(params.rsiSellMin ?? 55);
+    const minTouchCount = Math.max(1, Number(params.minTouchCount ?? 2));
     const enableNewsWindowFilter = Boolean(params.enableNewsWindowFilter ?? false);
     const inNewsWindow = Boolean(params.inNewsWindow ?? false);
 
