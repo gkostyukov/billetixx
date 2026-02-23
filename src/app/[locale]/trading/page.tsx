@@ -297,6 +297,8 @@ export default function TradingDashboard() {
     const autoCycleRunningRef = useRef(false);
     const marketRegimeSnapshotRef = useRef<MarketRegimeSnapshot | null>(null);
     const lastSeenTradesCountRef = useRef<number | null>(null);
+    const maybeRefreshAiScenarioRef = useRef<() => Promise<void>>(async () => {});
+    const runAutoCycleEngineRef = useRef<() => Promise<void>>(async () => {});
     const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('ticket');
     const [orderTicket, setOrderTicket] = useState<OrderTicketState>({
         side: 'BUY',
@@ -958,6 +960,14 @@ export default function TradingDashboard() {
     };
 
     useEffect(() => {
+        maybeRefreshAiScenarioRef.current = maybeRefreshAiScenario;
+    }, [maybeRefreshAiScenario]);
+
+    useEffect(() => {
+        runAutoCycleEngineRef.current = () => handleRunEngine(false, { autoMode: true });
+    });
+
+    useEffect(() => {
         engineLoadingRef.current = engineLoading;
     }, [engineLoading]);
 
@@ -981,8 +991,8 @@ export default function TradingDashboard() {
 
                 void (async () => {
                     try {
-                        await maybeRefreshAiScenario();
-                        await handleRunEngine(false, { autoMode: true });
+                        await maybeRefreshAiScenarioRef.current();
+                        await runAutoCycleEngineRef.current();
                     } finally {
                         nextRunAt = Date.now() + safeIntervalSec * 1000;
                         setAutoCountdownSec(safeIntervalSec);
@@ -993,7 +1003,7 @@ export default function TradingDashboard() {
         }, 1000);
 
         return () => clearInterval(tick);
-    }, [autoDryRunEnabled, autoDryRunIntervalSec, instrument, maybeRefreshAiScenario]);
+    }, [autoDryRunEnabled, autoDryRunIntervalSec, instrument]);
 
     useEffect(() => {
         const currentCount = trades.length;
