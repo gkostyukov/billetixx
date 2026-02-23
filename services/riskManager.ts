@@ -114,7 +114,8 @@ export function runRiskChecks(
   }
 
   if (marketContext.spread_pips > slPips * ENGINE_CONFIG.maxSpreadToSlRatio) {
-    reasons.push('Spread exceeds 20% of stop-loss distance.');
+    const pct = Math.round(ENGINE_CONFIG.maxSpreadToSlRatio * 100);
+    reasons.push(`Spread exceeds ${pct}% of stop-loss distance.`);
   }
 
   if (rr < ENGINE_CONFIG.minRiskReward) {
