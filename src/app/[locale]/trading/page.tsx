@@ -207,6 +207,19 @@ function badgeClassForSide(side: 'BUY' | 'SELL' | 'FLAT'): string {
     return 'border-gray-700 bg-gray-900/40 text-gray-300';
 }
 
+function SideIcon({ side }: { side: 'BUY' | 'SELL' }) {
+    // simple arrow icon
+    return side === 'BUY' ? (
+        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 4l7 8h-4v8H9v-8H5l7-8z" />
+        </svg>
+    ) : (
+        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 20l-7-8h4V4h6v8h4l-7 8z" />
+        </svg>
+    );
+}
+
 function badgeClassForOrderType(type: string): string {
     const t = String(type || '').toUpperCase();
     if (t.includes('TAKE_PROFIT')) return 'border-emerald-700 bg-emerald-900/30 text-emerald-300';
@@ -1756,7 +1769,8 @@ export default function TradingDashboard() {
                                                         const side = sideFromUnits(item.currentUnits);
                                                         if (side === 'FLAT') return null;
                                                         return (
-                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForSide(side)}`}>
+                                                            <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForSide(side)}`}>
+                                                                <SideIcon side={side} />
                                                                 {side}
                                                             </span>
                                                         );
@@ -1765,21 +1779,27 @@ export default function TradingDashboard() {
                                                 <p className={parseFloat(item.unrealizedPL || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'}>{parseFloat(item.unrealizedPL || '0').toFixed(2)}</p>
                                                 <p className="text-[10px] text-gray-500">units: {Math.abs(Number(item.currentUnits || 0))}</p>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => beginEditRisk(item.id, item.instrument)}
-                                                    disabled={actionLoadingKey === `risk:${item.id}` || actionLoadingKey === `trade:${item.id}`}
-                                                    className="text-[11px] px-2 py-1 rounded border border-blue-800 text-blue-300 hover:bg-blue-900/30 disabled:opacity-50"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleCloseTrade(item.id, item.instrument)}
-                                                    disabled={actionLoadingKey === `trade:${item.id}` || actionLoadingKey === `risk:${item.id}`}
-                                                    className="text-[11px] px-2 py-1 rounded border border-red-800 text-red-300 hover:bg-red-900/40 disabled:opacity-50"
-                                                >
-                                                    {actionLoadingKey === `trade:${item.id}` ? '...' : t('workspaceClose')}
-                                                </button>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right leading-tight">
+                                                    <p className="text-[10px] text-gray-500">open</p>
+                                                    <p className="text-[11px] text-gray-200 font-mono">{String((item as any)?.price || (item as any)?.openPrice || (item as any)?.averagePrice || '—')}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => beginEditRisk(item.id, item.instrument)}
+                                                        disabled={actionLoadingKey === `risk:${item.id}` || actionLoadingKey === `trade:${item.id}`}
+                                                        className="text-[11px] px-2 py-1 rounded border border-blue-800 text-blue-300 hover:bg-blue-900/30 disabled:opacity-50"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleCloseTrade(item.id, item.instrument)}
+                                                        disabled={actionLoadingKey === `trade:${item.id}` || actionLoadingKey === `risk:${item.id}`}
+                                                        className="text-[11px] px-2 py-1 rounded border border-red-800 text-red-300 hover:bg-red-900/40 disabled:opacity-50"
+                                                    >
+                                                        {actionLoadingKey === `trade:${item.id}` ? '...' : t('workspaceClose')}
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -1796,19 +1816,24 @@ export default function TradingDashboard() {
                                                     <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
                                                         {item.type}
                                                     </span>
-                                                    <p className="text-gray-400">{item.displayPrice ? `@ ${item.displayPrice}` : ''}</p>
+                                                    {item.tradeId ? (
+                                                        <p className="text-[10px] text-gray-500">trade #{item.tradeId}</p>
+                                                    ) : null}
                                                 </div>
-                                                {item.tradeId ? (
-                                                    <p className="text-[10px] text-gray-500">trade #{item.tradeId}</p>
-                                                ) : null}
                                             </div>
-                                            <button
-                                                onClick={() => handleCancelOrder(item.id, item.instrument)}
-                                                disabled={actionLoadingKey === `order:${item.id}`}
-                                                className="text-[11px] px-2 py-1 rounded border border-yellow-700 text-yellow-300 hover:bg-yellow-900/30 disabled:opacity-50"
-                                            >
-                                                {actionLoadingKey === `order:${item.id}` ? '...' : t('workspaceCancel')}
-                                            </button>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right leading-tight">
+                                                    <p className="text-[10px] text-gray-500">price</p>
+                                                    <p className="text-[11px] text-gray-200 font-mono">{item.displayPrice || '—'}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleCancelOrder(item.id, item.instrument)}
+                                                    disabled={actionLoadingKey === `order:${item.id}`}
+                                                    className="text-[11px] px-2 py-1 rounded border border-yellow-700 text-yellow-300 hover:bg-yellow-900/30 disabled:opacity-50"
+                                                >
+                                                    {actionLoadingKey === `order:${item.id}` ? '...' : t('workspaceCancel')}
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
