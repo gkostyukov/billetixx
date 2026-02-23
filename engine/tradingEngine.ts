@@ -10,6 +10,7 @@ import { calculateScore } from './scoring';
 import { updateEngineStatus } from './statusStore';
 import { logEngineCycle, logScannerCycle, logScannerSummary } from './cycleLogger';
 import { saveScannerSnapshot } from './scannerSnapshot';
+import { logExecutionEvent } from './executionLogger';
 import type { MarketContext, ScoredTradeCandidate, ScannerPairStatus, TradeIntent } from '../services/types';
 
 interface EngineInput {
@@ -444,6 +445,15 @@ export async function runTradingEngine(input: EngineInput) {
   }
 
   const executionResult = await executeTrade(input.userId, selected.pair, selected.intent);
+
+  await logExecutionEvent({
+    pair: selected.pair,
+    strategyId: selected.strategyId,
+    intent: selected.intent,
+    marketContext: selected.marketContext,
+    score: selected.score,
+    executionResult,
+  });
 
   const reason = 'Top-scored trade executed after scan and all validations.';
   updateEngineStatus({
