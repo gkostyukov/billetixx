@@ -23,7 +23,13 @@ export interface PriceSnapshot {
 export interface AccountSnapshot {
   balance: number;
   openPositions: Array<{ instrument: string; long?: { units: string }; short?: { units: string } }>;
-  openTrades: Array<{ id: string; instrument: string; currentUnits: string }>;
+  openTrades: Array<{
+    id: string;
+    instrument: string;
+    currentUnits: string;
+    /** True if trade has TP/SL/TrailingStop attached (relevant for FIFO constraint handling). */
+    hasRiskOrders?: boolean;
+  }>;
   fifoConstraints: boolean;
 }
 

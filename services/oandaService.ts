@@ -70,7 +70,21 @@ export async function fetchMarketData(
 
   const accountBalance = toNumber(accountRes.data?.account?.balance);
   const openPositions = positionsRes.data?.positions || [];
-  const openTrades = tradesRes.data?.trades || [];
+  const rawOpenTrades = tradesRes.data?.trades || [];
+
+  const openTrades = rawOpenTrades.map((trade: any) => ({
+    id: String(trade?.id || ''),
+    instrument: String(trade?.instrument || ''),
+    currentUnits: String(trade?.currentUnits ?? '0'),
+    hasRiskOrders: Boolean(
+      trade?.takeProfitOrder ||
+        trade?.stopLossOrder ||
+        trade?.trailingStopLossOrder ||
+        trade?.takeProfitOrderID ||
+        trade?.stopLossOrderID ||
+        trade?.trailingStopLossOrderID,
+    ),
+  }));
 
   if (!candles.M15.length || !candles.H1.length || mid <= 0 || accountBalance <= 0) {
     return null;

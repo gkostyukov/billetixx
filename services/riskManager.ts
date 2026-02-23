@@ -131,6 +131,22 @@ export function runRiskChecks(
     reasons.push('FIFO conflict risk: opposite trade already open on same pair.');
   }
 
+  if (marketContext.account.fifoConstraints) {
+    const requestedAbsUnits = Math.abs(Number(intent.units ?? ENGINE_CONFIG.fixedUnits));
+    const conflictingSameSize = sameInstrumentTrades.find((trade) => {
+      const existingAbsUnits = Math.abs(Number(trade.currentUnits || 0));
+      return existingAbsUnits === requestedAbsUnits && Boolean(trade.hasRiskOrders);
+    });
+
+    if (conflictingSameSize) {
+      const suggestionDown = Math.max(1, requestedAbsUnits - 1);
+      const suggestionUp = requestedAbsUnits + 1;
+      reasons.push(
+        `FIFO constraint: existing trade ${conflictingSameSize.id} already uses ${requestedAbsUnits} units on ${marketContext.pair} with TP/SL/TS. Use a unique unit size (e.g., ${suggestionDown} or ${suggestionUp}).`,
+      );
+    }
+  }
+
   const hasPositionOnPair = marketContext.account.openPositions.some((position) => {
     if (position.instrument !== marketContext.pair) return false;
     const longUnits = Number(position.long?.units || 0);
