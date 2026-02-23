@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
 type TradeAction = 'BUY' | 'SELL' | 'WAIT';
-type StrategyId = 'h1_trend_m15_pullback' | 'breakout_v1' | 'flat_range_v1';
+type StrategyId = 'h1_trend_m15_pullback' | 'breakout_v1' | 'breakout_v2' | 'flat_range_v1';
 
 function parsePrice(text: string, pattern: RegExp): number | null {
     const match = text.match(pattern);
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
 ВАЖНО:
 - Верни ОДИН валидный JSON и НИЧЕГО кроме JSON (без markdown).
-- Выбери recommendedStrategyId строго из: "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1".
+- Выбери recommendedStrategyId строго из: "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1" | "breakout_v2".
 
 Схема ответа:
 {
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
   "entry": number | null,
   "stopLoss": number | null,
   "takeProfit": number | null,
-  "recommendedStrategyId": "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1",
+  "recommendedStrategyId": "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1" | "breakout_v2",
   "recommendedStrategyReason": "короткое объяснение почему"
 }
 
@@ -122,7 +122,7 @@ Candles and current prices are provided as JSON.
 
 IMPORTANT:
 - Return ONE valid JSON object and NOTHING else (no markdown).
-- Choose recommendedStrategyId strictly from: "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1".
+- Choose recommendedStrategyId strictly from: "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1" | "breakout_v2".
 
 Response schema:
 {
@@ -131,7 +131,7 @@ Response schema:
   "entry": number | null,
   "stopLoss": number | null,
   "takeProfit": number | null,
-  "recommendedStrategyId": "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1",
+  "recommendedStrategyId": "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1" | "breakout_v2",
   "recommendedStrategyReason": "short reason"
 }
 
@@ -226,7 +226,7 @@ Provide your analysis and recommendation.`;
 
         // sanitize
         if (!['BUY', 'SELL', 'WAIT'].includes(action)) action = 'WAIT';
-        if (recommendedStrategyId && !['h1_trend_m15_pullback', 'flat_range_v1', 'breakout_v1'].includes(recommendedStrategyId)) {
+        if (recommendedStrategyId && !['h1_trend_m15_pullback', 'flat_range_v1', 'breakout_v1', 'breakout_v2'].includes(recommendedStrategyId)) {
             recommendedStrategyId = null;
         }
 
