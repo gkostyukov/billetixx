@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TradingChart from '@/components/TradingChart';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { useSearchParams } from 'next/navigation';
 
@@ -322,6 +322,7 @@ function buildMarketRegimeSnapshot(candles: any[], pricing: any): MarketRegimeSn
  */
 export default function TradingDashboard() {
     const t = useTranslations('Trading');
+    const locale = useLocale();
     const searchParams = useSearchParams();
     const signalId = searchParams.get('signalId');
     const [instrument, setInstrument] = useState('EUR_USD');
@@ -935,12 +936,16 @@ export default function TradingDashboard() {
 
             const aiRes = await fetch('/api/ai/analyze', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept-Language': locale,
+                },
                 body: JSON.stringify({
                     chartData: candles,
                     pricing,
                     instrument,
                     timeframe: 'M15',
+                    locale,
                 }),
             });
 

@@ -76,14 +76,19 @@ export async function POST(request: NextRequest) {
     const openai = new OpenAI({ apiKey });
 
     try {
-        const { chartData, pricing, instrument, timeframe } = await request.json();
+        const { chartData, pricing, instrument, timeframe, locale } = await request.json();
 
         if (!instrument) {
             return NextResponse.json({ error: 'Missing instrument' }, { status: 400 });
         }
 
         const acceptLanguage = String(request.headers.get('accept-language') || '').toLowerCase();
-        const wantsRussian = acceptLanguage.includes('ru');
+        const normalizedLocale = String(locale || '').toLowerCase();
+        const wantsRussian = normalizedLocale.startsWith('ru')
+            ? true
+            : normalizedLocale.startsWith('en')
+                ? false
+                : acceptLanguage.includes('ru');
 
         const systemPrompt = wantsRussian
             ? `Ты профессиональный AI-ассистент трейдера.
