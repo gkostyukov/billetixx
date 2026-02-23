@@ -65,6 +65,19 @@ interface ScannerStatusResponse {
     selectedTrade: string | null;
 }
 
+interface AiSignal {
+    id: string;
+    instrument: string;
+    timeframe: string;
+    action: 'BUY' | 'SELL' | 'WAIT';
+    entryPrice: number | null;
+    stopLoss: number | null;
+    takeProfit: number | null;
+    rationale: string;
+    createdAt: string;
+    orderLinks?: Array<{ id: string; status: string; createdAt: string }>;
+}
+
 type DashboardTab = 'trades' | 'orders' | 'positions' | 'activity';
 type ScannerFilter = 'ALL' | 'VALID' | 'REJECTED';
 
@@ -79,6 +92,7 @@ export default function DashboardPage() {
     const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
     const [scannerStatus, setScannerStatus] = useState<ScannerStatusResponse | null>(null);
+    const [aiSignals, setAiSignals] = useState<AiSignal[]>([]);
     const [scannerLoading, setScannerLoading] = useState(false);
     const [scannerFilter, setScannerFilter] = useState<ScannerFilter>('ALL');
     const [loading, setLoading] = useState(true);
@@ -102,6 +116,17 @@ export default function DashboardPage() {
             console.error('Dashboard scanner status error:', err);
         } finally {
             setScannerLoading(false);
+        }
+    };
+
+    const fetchAiSignals = async () => {
+        try {
+            const res = await fetch('/api/signals');
+            if (!res.ok) return;
+            const data = await res.json();
+            setAiSignals(data?.signals || []);
+        } catch (err) {
+            console.error('Dashboard signals fetch error:', err);
         }
     };
 
@@ -143,11 +168,14 @@ export default function DashboardPage() {
 
     useEffect(() => {
         fetchData();
+        fetchAiSignals();
         fetchScannerStatus();
         const interval = setInterval(fetchData, 10000);
+        const signalsInterval = setInterval(fetchAiSignals, 15000);
         const scannerInterval = setInterval(fetchScannerStatus, 10000);
         return () => {
             clearInterval(interval);
+            clearInterval(signalsInterval);
             clearInterval(scannerInterval);
         };
     }, []);
@@ -242,6 +270,21 @@ export default function DashboardPage() {
         );
     }
 
+    const latestSignalByInstrument = (() => {
+        const map = new Map<string, AiSignal>();
+        for (const s of aiSignals || []) {
+            if (!s?.instrument) continue;
+            const key = String(s.instrument);
+            const prev = map.get(key);
+            if (!prev) map.set(key, s);
+        }
+        return Array.from(map.values());
+    })();
+
+    const pairSuggestions = latestSignalByInstrument
+        .filter((s) => s.action !== 'WAIT')
+        .slice(0, 6);
+
     if (error === 'missingKeys') {
         return (
             <div className="container mx-auto p-6 max-w-lg mt-20 text-center">
@@ -269,6 +312,72 @@ export default function DashboardPage() {
                 <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1 rounded-full">
                     {t('autoRefresh')}
                 </span>
+            </div>
+
+            {/* Pair Suggestions (AI Tickets) */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-sm font-semibold text-white">{t('pairSuggestionsTitle')}</h2>
+                        <p className="text-xs text-gray-400 mt-1">{t('pairSuggestionsSubtitle')}</p>
+                    </div>
+                    <Link href="/analytics" className="text-xs text-blue-300 hover:text-blue-200">
+                        {t('viewAllSignals')} →
+                    </Link>
+                </div>
+
+                {pairSuggestions.length === 0 ? (
+                    <div className="mt-3 text-sm text-gray-500">{t('pairSuggestionsEmpty')}</div>
+                ) : (
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {pairSuggestions.map((s) => {
+                            const sideClass = s.action === 'BUY'
+                                ? 'text-emerald-300 border-emerald-700 bg-emerald-900/20'
+                                : 'text-red-300 border-red-700 bg-red-900/20';
+                            const hasOrders = (s.orderLinks?.length || 0) > 0;
+
+                            return (
+                                <div key={s.id} className={`border rounded-lg p-4 bg-gray-950/40 ${hasOrders ? 'border-emerald-700/60' : 'border-gray-800'}`}>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono text-white">{s.instrument.replace('_', '/')}</span>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${sideClass}`}>{s.action}</span>
+                                                <span className="text-[10px] text-gray-500">{s.timeframe}</span>
+                                            </div>
+                                            <div className="text-[11px] text-gray-500 mt-1">{new Date(s.createdAt).toLocaleString()}</div>
+                                        </div>
+                                        <Link
+                                            href={`/trading?signalId=${s.id}`}
+                                            className="text-xs px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white"
+                                        >
+                                            {t('openConsole')}
+                                        </Link>
+                                    </div>
+
+                                    <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-gray-300">
+                                        <div>
+                                            <div className="text-[10px] text-gray-500">entry</div>
+                                            <div className="font-mono">{s.entryPrice ?? '—'}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] text-gray-500">SL</div>
+                                            <div className="font-mono">{s.stopLoss ?? '—'}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] text-gray-500">TP</div>
+                                            <div className="font-mono">{s.takeProfit ?? '—'}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-3 text-[11px] text-gray-400 line-clamp-2">
+                                        {s.rationale}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* Account Summary Cards */}

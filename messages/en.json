@@ -131,6 +131,11 @@
         "readinessConflict": "Signals conflict; wait for confirmation."
     },
     "Dashboard": {
+        "pairSuggestionsTitle": "Pair suggestions",
+        "pairSuggestionsSubtitle": "AI-driven ideas based on your latest analyses. Pick a pair and open the trading console.",
+        "pairSuggestionsEmpty": "No suggestions yet. Run AI analysis on a pair to generate a ticket.",
+        "openConsole": "Open console",
+        "viewAllSignals": "View all tickets",
         "title": "Dashboard",
         "subtitle": "Live account overview",
         "loading": "Loading account data...",
