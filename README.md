@@ -33,6 +33,7 @@ Billetixx is a Next.js trading terminal with a conservative multi-pair scanner e
 - System design and engine architecture: `ARCHITECTURE.md`
 - Deployment details: `DEPLOYMENT.md`
 - Features inventory: `FEATURES.md`
+- Release notes and changes: `CHANGELOG.md`
 
 ## Quick local run
 
