@@ -1,3 +1,14 @@
+// ============================================================
+// Prisma Schema — Billetixx Forex Trading Platform
+// ============================================================
+// Models:
+//   User          — authenticated trader account
+//   Account       — NextAuth OAuth account links
+//   Session       — NextAuth sessions
+//   VerificationToken — NextAuth email verification
+//   TradeSignal   — AI-generated trade decision tickets
+// ============================================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +18,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Authenticated user / trader account.
+/// Stores per-user OANDA and OpenAI credentials.
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -17,31 +30,22 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  bills         Bill[]
-  payments      Payment[]
-  expenses      Expense[]
-  creditCards   CreditCard[]
-  incomes       Income[]
-  debts         Debt[]
-  bankAccounts  BankAccount[]
+  // OANDA API credentials (per-user)
+  oandaEnvironment       String   @default("practice") // "practice" or "live"
+  oandaPracticeAccountId String?
+  oandaPracticeToken     String?
+  oandaLiveAccountId     String?
+  oandaLiveToken         String?
+
+  // OpenAI API key (per-user, optional — falls back to server .env)
+  openaiApiKey           String?
+
+  tradeSignals  TradeSignal[]
   accounts      Account[]
   sessions      Session[]
 }
 
-model BankAccount {
-  id            String   @id @default(cuid())
-  name          String
-  bankName      String?
-  accountLast4  String
-  cardLast4     String?
-  active        Boolean  @default(true)
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  creditCards   CreditCard[]
-}
-
+/// NextAuth — OAuth provider account links.
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -61,6 +65,7 @@ model Account {
   @@unique([provider, providerAccountId])
 }
 
+/// NextAuth — active user sessions.
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
@@ -69,6 +74,7 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+/// NextAuth — email verification tokens.
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -77,128 +83,42 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model Category {
+/// AI-generated trade decision ticket.
+/// Created when the user requests an AI analysis on the Trading terminal.
+model TradeSignal {
   id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Bill {
-  id               String   @id @default(cuid())
-  title            String   // from_source in old schema
-  amount           Float    // balance in old schema
-  dueDate          DateTime
-  dueDayOfMonth    Int?     // day of month (1-31)
-  status           String   @default("pending") // pending, paid, overdue
-  category         String?
-  description      String?
-  comment          String?
-  fromSource       String?  // payment source account name
-  sourceType       String?  // 'BankAccount' | 'CreditCard'
-  sourceId         String?  // ID of the source entity
-  balance          Float?   // current balance
-  minPayment       Float?   // minimum payment amount
-  active           Boolean  @default(true)
-  fullyPaid        Boolean  @default(false)
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-
-model Payment {
-  id           String   @id @default(cuid())
-  description  String   @default("")
-  comment      String?
-  dueDate      DateTime?
-  amount       Float    @default(0)
-  fromSource   String?  // banking account source
-  sourceType   String?  // 'expense' | 'bill'
-  sourceRefId  String?  // ID from source table
-  balance      Float?   @default(0)
-  minPayment   Float?   @default(0)
-  autopay      Boolean? @default(false)
-  billId       String?  // reference to Bill if created from bill
-  paid         Boolean  @default(false)
-  isIncome     Boolean  @default(false)
-  active       Boolean  @default(true)
-  category     String?
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model Expense {
-  id          String   @id @default(cuid())
-  title       String
-  amount      Float
-  date        DateTime
-  category    String
-  description String?
-  recurring   Boolean  @default(false)
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  instrument  String   // e.g. "EUR_USD"
+  timeframe   String   @default("M15")
+  action      String   // "BUY" | "SELL" | "WAIT"
+  entryPrice  Float?
+  stopLoss    Float?
+  takeProfit  Float?
+  rationale   String   // Full AI reasoning text
+  status      String   @default("open") // "open" | "closed" | "cancelled"
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
-model CreditCard {
-  id               String   @id @default(cuid())
-  name             String   // Card nickname/description
-  number           String?  // Last 4 digits only for security
-  lastFourDigits   String   // Last 4 digits
-  balance          Float    @default(0)  // Current balance
-  statementBalance Float?   @default(0)  // Statement balance
-  creditLimit      Float    // Credit limit
-  availableCredit  Float?   @default(0)  // Available credit
-  dueDate          Int      // Day of month (1-31)
-  nextDueDate      DateTime? // Next payment due date
-  apr              Float?   @default(0)  // Annual Percentage Rate
-  minPayment       Float?   @default(0)  // Minimum payment amount
-  autopay          Boolean  @default(false)
-  autopayAccountId String?
-  autopayAccount   BankAccount? @relation(fields: [autopayAccountId], references: [id])
-  active           Boolean  @default(true)
-  notes            String?  // Additional notes
-  bank             String?  // Bank/issuer name
-  cardType         String?  // visa, mastercard, amex, discover
-  rewardsProgram   String?  // Rewards program details
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
+/// Cached sentiment/impact snapshot based on recent market news headlines.
+/// Used to avoid recalculating news impact on each terminal refresh.
+model NewsImpactSnapshot {
+  id                 String   @id @default(cuid())
+  instrument         String
+  timeframe          String   @default("M15")
+  upsideProbability  Int
+  downsideProbability Int
+  reversalRisk       Int
+  marketBias         String
+  summary            String
+  headlinesJson      String
+  generatedAt        DateTime @default(now())
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-model Income {
-  id          String   @id @default(cuid())
-  title       String
-  amount      Float
-  date        DateTime
-  source      String
-  recurring   Boolean  @default(false)
-  description String?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Debt {
-  id            String   @id @default(cuid())
-  title         String
-  totalAmount   Float
-  remainingAmount Float
-  interestRate  Float    @default(0)
-  minimumPayment Float?
-  dueDate       DateTime?
-  creditor      String?
-  status        String   @default("active") // active, paid
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  @@index([instrument, timeframe, expiresAt])
 }

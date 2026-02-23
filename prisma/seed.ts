@@ -4,173 +4,63 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  // Create demo user
   const hashedPassword = await bcrypt.hash('demo123', 10)
-  
+
+  // Upsert demo user with OANDA practice credentials
   const user = await prisma.user.upsert({
     where: { email: 'demo@billetixx.com' },
-    update: {},
+    update: {
+      oandaEnvironment: 'practice',
+      oandaPracticeAccountId: process.env.OANDA_ACCOUNT_ID || '101-001-38594761-001',
+      oandaPracticeToken: process.env.OANDA_PRACTICE_TOKEN || '5b32850a33ebe2688a2521d1f50fd0d8-0f5cea5c42703c78353aaf1956d060be',
+    },
     create: {
       email: 'demo@billetixx.com',
       name: 'Demo User',
       password: hashedPassword,
+      oandaEnvironment: 'practice',
+      oandaPracticeAccountId: process.env.OANDA_ACCOUNT_ID || '101-001-38594761-001',
+      oandaPracticeToken: process.env.OANDA_PRACTICE_TOKEN || '5b32850a33ebe2688a2521d1f50fd0d8-0f5cea5c42703c78353aaf1956d060be',
     },
   })
 
-  console.log('Created user:', user.email)
+  console.log('Demo user ready:', user.email)
 
-  // Create sample bills
-  await prisma.bill.createMany({
+  // Seed sample trade signals for the demo user
+  await prisma.tradeSignal.createMany({
     data: [
       {
-        title: 'Electric Bill',
-        amount: 120.50,
-        dueDate: new Date('2024-12-15'),
-        status: 'pending',
-        category: 'Utilities',
         userId: user.id,
+        instrument: 'EUR_USD',
+        timeframe: 'M15',
+        action: 'BUY',
+        entryPrice: 1.0845,
+        stopLoss: 1.0810,
+        takeProfit: 1.0920,
+        rationale: 'Bullish engulfing pattern on M15. RSI recovering from oversold territory (28→42). Strong support at 1.0840. Risk/reward 1:2.1. Recommend BUY on next candle open with tight stop below support.',
+        status: 'open',
       },
       {
-        title: 'Internet Service',
-        amount: 79.99,
-        dueDate: new Date('2024-12-10'),
-        status: 'paid',
-        category: 'Utilities',
         userId: user.id,
+        instrument: 'GBP_USD',
+        timeframe: 'M15',
+        action: 'SELL',
+        entryPrice: 1.2670,
+        stopLoss: 1.2700,
+        takeProfit: 1.2600,
+        rationale: 'Double top formation confirmed at 1.2680 resistance. MACD bearish crossover. Momentum weak. Recommend SELL with stop above recent high. Target previous support at 1.2600.',
+        status: 'closed',
       },
       {
-        title: 'Rent',
-        amount: 1500.00,
-        dueDate: new Date('2024-12-01'),
-        status: 'paid',
-        category: 'Housing',
         userId: user.id,
-      },
-    ],
-  })
-
-  // Create sample expenses
-  await prisma.expense.createMany({
-    data: [
-      {
-        title: 'Groceries',
-        amount: 85.30,
-        date: new Date('2024-11-20'),
-        category: 'Food',
-        recurring: false,
-        userId: user.id,
-      },
-      {
-        title: 'Gas',
-        amount: 45.00,
-        date: new Date('2024-11-22'),
-        category: 'Transportation',
-        recurring: false,
-        userId: user.id,
-      },
-      {
-        title: 'Gym Membership',
-        amount: 50.00,
-        date: new Date('2024-11-01'),
-        category: 'Health',
-        recurring: true,
-        userId: user.id,
-      },
-    ],
-  })
-
-  // Create sample incomes
-  await prisma.income.createMany({
-    data: [
-      {
-        title: 'Monthly Salary',
-        amount: 5000.00,
-        date: new Date('2024-11-30'),
-        source: 'Employment',
-        recurring: true,
-        userId: user.id,
-      },
-      {
-        title: 'Freelance Project',
-        amount: 750.00,
-        date: new Date('2024-11-15'),
-        source: 'Freelance',
-        recurring: false,
-        userId: user.id,
-      },
-    ],
-  })
-
-  // Create sample credit cards
-  await prisma.creditCard.createMany({
-    data: [
-      {
-        name: 'Chase Sapphire',
-        lastFourDigits: '1234',
-        creditLimit: 10000.00,
-        currentBalance: 2500.00,
-        dueDate: 15,
-        bank: 'Chase',
-        cardType: 'Visa',
-        userId: user.id,
-      },
-      {
-        name: 'AmEx Gold',
-        lastFourDigits: '5678',
-        creditLimit: 5000.00,
-        currentBalance: 1200.00,
-        dueDate: 20,
-        bank: 'American Express',
-        cardType: 'AmEx',
-        userId: user.id,
-      },
-    ],
-  })
-
-  // Create sample debts
-  await prisma.debt.createMany({
-    data: [
-      {
-        title: 'Student Loan',
-        totalAmount: 25000.00,
-        remainingAmount: 18000.00,
-        interestRate: 4.5,
-        minimumPayment: 250.00,
-        creditor: 'Federal Student Aid',
-        status: 'active',
-        userId: user.id,
-      },
-      {
-        title: 'Car Loan',
-        totalAmount: 15000.00,
-        remainingAmount: 8000.00,
-        interestRate: 3.9,
-        minimumPayment: 350.00,
-        creditor: 'Auto Finance Co',
-        status: 'active',
-        userId: user.id,
-      },
-    ],
-  })
-
-  // Create sample payments
-  await prisma.payment.createMany({
-    data: [
-      {
-        title: 'Electric Bill Payment',
-        amount: 120.50,
-        paymentDate: new Date('2024-11-15'),
-        method: 'card',
-        category: 'Utilities',
-        userId: user.id,
-      },
-      {
-        title: 'Rent Payment',
-        amount: 1500.00,
-        paymentDate: new Date('2024-11-01'),
-        method: 'transfer',
-        category: 'Housing',
-        userId: user.id,
+        instrument: 'USD_JPY',
+        timeframe: 'M15',
+        action: 'WAIT',
+        entryPrice: null,
+        stopLoss: null,
+        takeProfit: null,
+        rationale: 'Price consolidating inside 148.20–148.80 range. No clear directional bias. Recommend waiting for breakout confirmation before entering. Watch for news catalyst.',
+        status: 'cancelled',
       },
     ],
   })

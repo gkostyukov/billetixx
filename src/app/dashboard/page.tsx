@@ -88,7 +88,7 @@ export default function Dashboard() {
           fetch("/api/creditcards").then(r => r.json()),
           fetch("/api/payments").then(r => r.json()),
         ])
-        
+
         setData({ bills, expenses, incomes, debts, creditCards, payments })
       } catch (error) {
         console.error("Error fetching data:", error)
@@ -135,73 +135,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="border-b bg-white dark:bg-gray-800">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Billetixx Dashboard</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Welcome back, {session?.user?.name || session?.user?.email}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              >
-                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </Button>
-              <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
-                Sign Out
-              </Button>
-            </div>
-          </div>
-          <div className="flex gap-2 mt-4">
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/dashboard")}
-              className="font-medium"
-            >
-              Dashboard
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/bills")}
-              className="font-medium"
-            >
-              Bills
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/payments")}
-              className="font-medium"
-            >
-              Payments
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/bank-accounts")}
-              className="font-medium"
-            >
-              Bank Accounts
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/credit-cards")}
-              className="font-medium"
-            >
-              Credit Cards
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/categories")}
-              className="font-medium"
-            >
-              Categories
-            </Button>
-          </div>
-        </div>
-      </div>
-
       <div className="container mx-auto px-4 py-8">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -319,11 +252,10 @@ export default function Dashboard() {
                     </div>
                     <div className="text-right">
                       <p className="font-medium">${bill.amount.toFixed(2)}</p>
-                      <p className={`text-sm ${
-                        bill.status === 'paid' ? 'text-green-600' : 
-                        bill.status === 'overdue' ? 'text-red-600' : 
-                        'text-orange-600'
-                      }`}>
+                      <p className={`text-sm ${bill.status === 'paid' ? 'text-green-600' :
+                        bill.status === 'overdue' ? 'text-red-600' :
+                          'text-orange-600'
+                        }`}>
                         {bill.status}
                       </p>
                     </div>

@@ -1,0 +1,23 @@
+{
+  "activeStrategy": "flat_range_v1",
+  "scannedPairs": [
+    {
+      "pair": "EUR_USD",
+      "decision": "NO_TRADE",
+      "score": null,
+      "rr": 0,
+      "spread": 3.5,
+      "rejected": true,
+      "rejectionReasonCode": "SPREAD_TOO_WIDE",
+      "metrics": {
+        "spread_pips": 3.5,
+        "max_spread_pips": 1.5
+      },
+      "rejectionReasons": [
+        "NO_TRADE: spread too wide (3.50 > 1.50)."
+      ]
+    }
+  ],
+  "selectedTrade": null,
+  "updatedAt": "2026-02-23T02:47:55.145Z"
+}

@@ -1,73 +1,50 @@
-# Quick Start Guide
+# Quick Start (Conservative Trading Workflow)
 
-Get Billetixx running in 5 minutes!
+Get Billetixx running and validate scanner behavior safely.
 
-## Option 1: Docker (Fastest)
-
-```bash
-# Clone the repo
-git clone https://github.com/gkostyukov/billetixx.git
-cd billetixx
-
-# Start with Docker
-docker-compose up -d
-
-# Run migrations and seed
-docker-compose exec app npx prisma migrate deploy
-docker-compose exec app npm run prisma:seed
-
-# Open http://localhost:3000
-# Login: demo@billetixx.com / demo123
-```
-
-## Option 2: Local Development
+## 1) Start application
 
 ```bash
-# Clone the repo
-git clone https://github.com/gkostyukov/billetixx.git
-cd billetixx
-
-# Install dependencies
 npm install
-
-# Set up environment
-cp .env.example .env
-# Edit .env with your PostgreSQL credentials
-
-# Set up database
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
-
-# Start dev server
-
-
-# Open http://localhost:3000
-# Login: demo@billetixx.com / demo123
+npm run dev
 ```
 
-## What You Get
+Open `http://localhost:3000`.
 
-After login, you'll see:
-- 📊 Financial dashboard with charts
-- 💰 Income tracking
-- 💳 Expense management
-- 📅 Bill reminders
-- 💳 Credit card monitoring
-- 📈 Debt tracking
+## 2) Configure API keys
 
-## Next Steps
+In Settings → API:
+- set OANDA environment to `practice`
+- fill OANDA account ID + token
+- optionally add OpenAI key for AI analysis text
 
-1. Explore the dashboard
-2. Add your own financial data
-3. Customize categories
-4. Set up recurring transactions
-5. Export reports
+Without OANDA keys, account and execution routes are blocked.
 
-## Need Help?
+## 3) First safe run (recommended)
 
-- Read the full [README.md](README.md)
-- Check [DEPLOYMENT.md](DEPLOYMENT.md) for production setup
-- Open an issue on GitHub
+1. Open Trading page.
+2. Keep engine in `Dry Run`.
+3. Run scanner/engine manually.
+4. Inspect Scanner panel:
+   - `BEST` = strongest valid candidate by score
+   - `SELECTED` = candidate chosen for potential execution
+5. Check rejected pairs and reasons.
 
-Enjoy managing your finances! 💰
+## 4) Execute only after validation
+
+Use `Execute` only when:
+- strategy/risk context is clear
+- rejection reasons are understood
+- exposure constraints are acceptable
+
+## 5) Useful endpoints
+
+- `POST /api/trading/engine` (`{ "execute": false }` or `{ "execute": true }`)
+- `GET /status`
+- `GET /scanner-status`
+
+## 6) Next docs
+
+- Full user flow: `USER_GUIDE.md`
+- Architecture details: `ARCHITECTURE.md`
+- Deployment: `DEPLOYMENT.md`

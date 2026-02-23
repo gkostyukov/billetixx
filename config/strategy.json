@@ -1,0 +1,20 @@
+{
+  "activeStrategyId": "flat_range_v1",
+  "activeProfile": "soft",
+  "profiles": {
+    "strict": {
+      "rrTarget": 1.6,
+      "pullbackAtrRatio": 0.3,
+      "zoneAtrTolerance": 0.35,
+      "slAtrBuffer": 0.1,
+      "minSlAtr": 0.2
+    },
+    "soft": {
+      "rrTarget": 1.45,
+      "pullbackAtrRatio": 0.22,
+      "zoneAtrTolerance": 0.45,
+      "slAtrBuffer": 0.1,
+      "minSlAtr": 0.2
+    }
+  }
+}

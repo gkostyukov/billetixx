@@ -1,3 +1,22 @@
+/**
+ * @file auth.ts
+ * @description NextAuth v5 configuration for Billetixx.
+ *
+ * Authentication strategy: **JWT sessions** (stateless, no DB session writes on each request).
+ *
+ * Providers:
+ * - **Credentials** (email + bcrypt password) — always active
+ * - **Google / Facebook / GitHub** OAuth — active only when env vars are set
+ *
+ * Callbacks:
+ * - `jwt`     — attaches `user.id` to the JWT token on first sign-in
+ * - `session` — exposes `session.user.id` to client components
+ *
+ * Exported:
+ * - `auth`     — server-side session getter (use in API routes and Server Components)
+ * - `handlers` — GET/POST route handlers (mounted at `/api/auth/[...nextauth]`)
+ * - `signIn` / `signOut` — server actions
+ */
 import NextAuth, { NextAuthConfig } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import GoogleProvider from "next-auth/providers/google"
@@ -75,13 +94,14 @@ export const authOptions: NextAuthConfig = {
       return token
     },
     async session({ session, token }) {
+      console.log("NextAuth Session Callback:", { session, token });
       if (session.user) {
         session.user.id = token.id as string
       }
       return session
     }
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authOptions)

@@ -1,0 +1,44 @@
+{"ts":"2026-02-23T01:41:02.345Z","strategyId":"h1_trend_m15_pullback","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T01:41:02.348Z","strategyId":"h1_trend_m15_pullback","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T01:52:22.497Z","strategyId":"h1_trend_m15_pullback","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.5,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T01:52:22.501Z","strategyId":"h1_trend_m15_pullback","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T01:54:08.884Z","strategyId":"h1_trend_m15_pullback","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T01:54:08.888Z","strategyId":"h1_trend_m15_pullback","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T01:55:04.830Z","strategyId":"h1_trend_m15_pullback","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.5,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T01:55:04.832Z","strategyId":"h1_trend_m15_pullback","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:01:57.636Z","strategyId":"h1_trend_m15_pullback","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:01:57.639Z","strategyId":"h1_trend_m15_pullback","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:02:04.584Z","strategyId":"h1_trend_m15_pullback","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:02:04.587Z","strategyId":"h1_trend_m15_pullback","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:12:21.414Z","strategyId":"breakout_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.7,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:12:21.417Z","strategyId":"breakout_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:14:37.578Z","strategyId":"breakout_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.5,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:14:37.580Z","strategyId":"breakout_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:15:11.856Z","strategyId":"breakout_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.5,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:15:11.858Z","strategyId":"breakout_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:18:55.818Z","strategyId":"breakout_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.5,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:18:55.820Z","strategyId":"breakout_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:19:06.829Z","strategyId":"breakout_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:19:06.831Z","strategyId":"breakout_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:19:13.706Z","strategyId":"h1_trend_m15_pullback","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:19:13.708Z","strategyId":"h1_trend_m15_pullback","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:19:23.851Z","strategyId":"breakout_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:19:23.853Z","strategyId":"breakout_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:26:33.548Z","strategyId":"breakout_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.7,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:26:33.551Z","strategyId":"breakout_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:27:45.261Z","strategyId":"breakout_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:27:45.262Z","strategyId":"breakout_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:33:10.923Z","strategyId":"breakout_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["Strategy decision is NO_TRADE."],"selectedTrade":null}
+{"ts":"2026-02-23T02:33:10.925Z","strategyId":"breakout_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"No valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:46:36.069Z","strategyId":"flat_range_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.4,"score":null,"rejectionReasons":["NO_TRADE: spread too wide (3.40 > 1.50)."],"selectedTrade":null}
+{"ts":"2026-02-23T02:46:36.072Z","type":"scanner_summary","engine":"flat_range_v1","instruments_count":1,"candidates_count":0,"rejected_count":1,"decision":"NO_TRADE","top_reason":"NO_TRADE: spread too wide (3.40 > 1.50)."}
+{"ts":"2026-02-23T02:46:36.074Z","strategyId":"flat_range_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"NO_TRADE: no valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:46:45.824Z","strategyId":"flat_range_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.6,"score":null,"rejectionReasons":["NO_TRADE: spread too wide (3.60 > 1.50)."],"selectedTrade":null}
+{"ts":"2026-02-23T02:46:45.826Z","type":"scanner_summary","engine":"flat_range_v1","instruments_count":1,"candidates_count":0,"rejected_count":1,"decision":"NO_TRADE","top_reason":"NO_TRADE: spread too wide (3.60 > 1.50)."}
+{"ts":"2026-02-23T02:46:45.829Z","strategyId":"flat_range_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"NO_TRADE: no valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:46:56.732Z","strategyId":"flat_range_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.5,"score":null,"rejectionReasons":["NO_TRADE: spread too wide (3.50 > 1.50)."],"selectedTrade":null}
+{"ts":"2026-02-23T02:46:56.734Z","type":"scanner_summary","engine":"flat_range_v1","instruments_count":1,"candidates_count":0,"rejected_count":1,"decision":"NO_TRADE","top_reason":"NO_TRADE: spread too wide (3.50 > 1.50)."}
+{"ts":"2026-02-23T02:46:56.736Z","strategyId":"flat_range_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"NO_TRADE: no valid trades after scan/risk/scoring filters."}
+{"ts":"2026-02-23T02:47:55.155Z","strategyId":"flat_range_v1","pair":"EUR_USD","decision":"NO_TRADE","rr":0,"spread":3.5,"score":null,"rejectionReasons":["NO_TRADE: spread too wide (3.50 > 1.50)."],"selectedTrade":null}
+{"ts":"2026-02-23T02:47:55.163Z","type":"scanner_summary","engine":"flat_range_v1","instruments_count":1,"candidates_count":0,"rejected_count":1,"decision":"NO_TRADE","top_reason":"NO_TRADE: spread too wide (3.50 > 1.50)."}
+{"ts":"2026-02-23T02:47:55.178Z","strategyId":"flat_range_v1","market":null,"intent":null,"risk":null,"result":"NO_TRADE","reason":"NO_TRADE: no valid trades after scan/risk/scoring filters."}
