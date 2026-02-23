@@ -201,8 +201,14 @@
         "clickToExpand": "Нажмите для раскрытия"
     },
     "Settings": {
+        "settingsTitle": "Настройки",
+        "settingsSubtitle": "API ключи и параметры торговли",
+        "tabApi": "API",
+        "tabTrading": "Торговля",
         "title": "Настройки API",
         "description": "Настройте подключения к внешним API для трейдинга.",
+        "tradingSettingsSubtitle": "Персональные настройки сканера (только UI)",
+        "tradingSettingsNote": "Примечание: страница пока минимальная — дальше добавим веса scoring и параметры профилей стратегий.",
         "tradingSettingsLink": "Настройки торговли",
         "environment": "Окружение Oanda",
         "practice": "Практика (Demo)",

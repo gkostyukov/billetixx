@@ -201,8 +201,14 @@
         "clickToExpand": "Click to expand"
     },
     "Settings": {
+        "settingsTitle": "Settings",
+        "settingsSubtitle": "Configure API keys and trading preferences",
+        "tabApi": "API",
+        "tabTrading": "Trading",
         "title": "API Settings",
         "description": "Configure your external API connections for trading.",
+        "tradingSettingsSubtitle": "Per-user scanner settings (UI only)",
+        "tradingSettingsNote": "Note: This page is intentionally minimal. We can add scoring weights + per-strategy profile params next.",
         "tradingSettingsLink": "Go to trading settings",
         "environment": "Oanda Environment",
         "practice": "Practice (Demo)",
