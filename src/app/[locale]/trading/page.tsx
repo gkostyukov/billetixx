@@ -222,12 +222,21 @@ function SideIcon({ side }: { side: 'BUY' | 'SELL' }) {
 
 function badgeClassForOrderType(type: string): string {
     const t = String(type || '').toUpperCase();
+    if (t.includes('ORDER_FILL')) return 'border-yellow-700 bg-yellow-900/20 text-yellow-300';
     if (t.includes('TAKE_PROFIT')) return 'border-emerald-700 bg-emerald-900/30 text-emerald-300';
     if (t.includes('STOP_LOSS')) return 'border-red-700 bg-red-900/30 text-red-300';
     if (t.includes('TRAILING')) return 'border-yellow-700 bg-yellow-900/20 text-yellow-300';
     if (t.includes('LIMIT')) return 'border-blue-700 bg-blue-900/20 text-blue-300';
     if (t.includes('STOP')) return 'border-orange-700 bg-orange-900/20 text-orange-300';
     return 'border-gray-700 bg-gray-900/40 text-gray-300';
+}
+
+function extractDetailsNumber(details: string | null | undefined, key: string): number | null {
+    if (!details) return null;
+    const match = String(details).match(new RegExp(`${key}=(-?\\d+(?:\\.\\d+)?)`));
+    if (!match?.[1]) return null;
+    const n = Number(match[1]);
+    return Number.isFinite(n) ? n : null;
 }
 
 function orderTypeLabelRu(type: string): string {
@@ -1888,20 +1897,39 @@ export default function TradingDashboard() {
 
                             {workspaceTab === 'activity' && (
                                 <div>
-                                    {activity.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoActivity')}</p> : activity.map((item) => (
-                                        <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs">
-                                            <div className="flex items-center gap-2">
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
-                                                    {orderTypeLabelRu(item.type)}
-                                                </span>
-                                                <p className="text-gray-200">{item.instrument ? formatInstrumentLabel(item.instrument) : ''}</p>
+                                    {activity.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoActivity')}</p> : activity.map((item) => {
+                                        const units = extractDetailsNumber(item.details, 'units');
+                                        const price = extractDetailsNumber(item.details, 'price');
+                                        const side = sideFromUnits(units ?? 0);
+                                        const priceClass = side === 'BUY' ? 'text-emerald-400' : side === 'SELL' ? 'text-red-400' : 'text-gray-200';
+
+                                        return (
+                                            <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
+                                                            {orderTypeLabelRu(item.type)}
+                                                        </span>
+                                                        {side !== 'FLAT' && (
+                                                            <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForSide(side)}`}>
+                                                                <SideIcon side={side} />
+                                                                {side}
+                                                            </span>
+                                                        )}
+                                                        <p className="text-gray-200 truncate">{item.instrument ? formatInstrumentLabel(item.instrument) : ''}</p>
+                                                    </div>
+                                                    <div className="text-right leading-tight">
+                                                        <p className="text-[10px] text-gray-500">цена</p>
+                                                        <p className={`text-[11px] font-mono ${priceClass}`}>{price != null ? price : '—'}</p>
+                                                    </div>
+                                                </div>
+                                                {item.details ? (
+                                                    <p className="text-[11px] text-gray-400 line-clamp-2">{item.details}</p>
+                                                ) : null}
+                                                <p className="text-gray-500">{item.time ? new Date(item.time).toLocaleString() : '—'}</p>
                                             </div>
-                                            {item.details ? (
-                                                <p className="text-[11px] text-gray-400 line-clamp-2">{item.details}</p>
-                                            ) : null}
-                                            <p className="text-gray-500">{item.time ? new Date(item.time).toLocaleString() : '—'}</p>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
