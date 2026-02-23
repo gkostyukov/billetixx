@@ -17,6 +17,25 @@ interface EngineInput {
   userId: string;
   pair?: string;
   execute?: boolean;
+  overrides?: {
+    activeStrategyId: string;
+    activeProfile: 'strict' | 'soft';
+    strategyProfiles: Record<'strict' | 'soft', Record<string, unknown>>;
+    watchlist: string[];
+    maxConcurrentTrades: number;
+    scoring: {
+      rrWeight: number;
+      trendClarityWeight: number;
+      spreadWeight: number;
+      distanceFromSRWeight: number;
+    };
+    engine: {
+      fixedUnits: number;
+      riskPerTradeUsd: number;
+      minRiskReward: number;
+      maxSpreadToSlRatio: number;
+    };
+  };
 }
 
 interface PairStrategyRecommendation {
@@ -80,8 +99,23 @@ function recommendStrategyForPair(params: {
 
 export async function runTradingEngine(input: EngineInput) {
   const execute = Boolean(input.execute);
-  const strategyConfig = await loadStrategyConfig();
-  const tradingConfig = await loadTradingConfig();
+  const strategyConfig = input.overrides
+    ? {
+      activeStrategyId: input.overrides.activeStrategyId,
+      activeProfile: input.overrides.activeProfile,
+      profiles: input.overrides.strategyProfiles,
+      params: input.overrides.strategyProfiles[input.overrides.activeProfile],
+    }
+    : await loadStrategyConfig();
+
+  const tradingConfig = input.overrides
+    ? {
+      watchlist: input.overrides.watchlist,
+      maxConcurrentTrades: input.overrides.maxConcurrentTrades,
+      scoring: input.overrides.scoring,
+    }
+    : await loadTradingConfig();
+
   const activeStrategyId = strategyConfig.activeStrategyId;
   const registry = getStrategyRegistry();
   const strategies = registry.list();
@@ -201,6 +235,7 @@ export async function runTradingEngine(input: EngineInput) {
 
     const riskCheck = runRiskChecks(marketContext, intent, {
       maxConcurrentTrades: tradingConfig.maxConcurrentTrades,
+      engine: input.overrides?.engine,
     });
 
     if (!riskCheck.passed) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { loadStrategyConfig, setActiveStrategyId } from '../../../../../engine/strategyConfig';
+import { prisma } from '@/lib/prisma';
+import { loadUserTradingRuntimeConfig } from '../../../../../engine/userTradingConfig';
 import { getStrategyRegistry } from '../../../../../strategies';
 
 export async function GET() {
@@ -10,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const config = await loadStrategyConfig();
+    const config = await loadUserTradingRuntimeConfig(session.user.id);
     const registry = getStrategyRegistry();
     const strategies = registry.list().map((strategy) => ({
       id: strategy.id,
@@ -47,10 +48,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Strategy not found' }, { status: 404 });
     }
 
-    const updated = await setActiveStrategyId(strategyId);
+    await prisma.userTradingConfig.upsert({
+      where: { userId: session.user.id },
+      create: {
+        userId: session.user.id,
+        activeStrategyId: strategyId,
+      },
+      update: {
+        activeStrategyId: strategyId,
+      },
+    });
 
     return NextResponse.json({
-      activeStrategyId: updated.activeStrategyId,
+      activeStrategyId: strategyId,
     });
   } catch (error: any) {
     console.error('Trading strategy POST error:', error?.message || error);

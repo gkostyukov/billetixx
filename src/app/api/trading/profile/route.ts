@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { loadStrategyConfig, setActiveStrategyProfile, type StrategyProfile } from '../../../../../engine/strategyConfig';
+import { prisma } from '@/lib/prisma';
+import { loadUserTradingRuntimeConfig } from '../../../../../engine/userTradingConfig';
 
 export async function GET() {
   try {
@@ -9,11 +10,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const config = await loadStrategyConfig();
+    const config = await loadUserTradingRuntimeConfig(session.user.id);
 
     return NextResponse.json({
       activeProfile: config.activeProfile,
-      profiles: config.profiles,
+      profiles: config.strategyProfiles,
     });
   } catch (error: any) {
     console.error('Trading profile GET error:', error?.message || error);
@@ -35,11 +36,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid profile' }, { status: 400 });
     }
 
-    const updated = await setActiveStrategyProfile(profile as StrategyProfile);
+    await prisma.userTradingConfig.upsert({
+      where: { userId: session.user.id },
+      create: {
+        userId: session.user.id,
+        activeProfile: profile,
+      },
+      update: {
+        activeProfile: profile,
+      },
+    });
+
+    const config = await loadUserTradingRuntimeConfig(session.user.id);
 
     return NextResponse.json({
-      activeProfile: updated.activeProfile,
-      profiles: updated.profiles,
+      activeProfile: config.activeProfile,
+      profiles: config.strategyProfiles,
     });
   } catch (error: any) {
     console.error('Trading profile POST error:', error?.message || error);

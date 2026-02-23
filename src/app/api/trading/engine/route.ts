@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { runTradingEngine } from '../../../../../engine/tradingEngine';
+import { loadUserTradingRuntimeConfig } from '../../../../../engine/userTradingConfig';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,14 @@ export async function POST(request: NextRequest) {
     const pair = body?.pair ? String(body.pair).toUpperCase() : undefined;
     const execute = Boolean(body?.execute);
 
-    const result = await runTradingEngine({ userId: session.user.id, pair, execute });
+    const userConfig = await loadUserTradingRuntimeConfig(session.user.id);
+
+    const result = await runTradingEngine({
+      userId: session.user.id,
+      pair,
+      execute,
+      overrides: userConfig,
+    } as any);
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('Trading engine route error:', error?.response?.data || error?.message || error);

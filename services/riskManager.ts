@@ -3,6 +3,12 @@ import type { MarketContext, RiskCheckResult, TradeIntent } from './types';
 
 interface RiskCheckOptions {
   maxConcurrentTrades?: number;
+  engine?: {
+    fixedUnits: number;
+    riskPerTradeUsd: number;
+    minRiskReward: number;
+    maxSpreadToSlRatio: number;
+  };
 }
 
 function pipSize(pair: string): number {
@@ -58,9 +64,9 @@ function getExistingUsdExposureScore(marketContext: MarketContext): number {
   }, 0);
 }
 
-function getCandidateUsdExposure(pair: string, decision: TradeIntent['decision']): number {
+function getCandidateUsdExposure(pair: string, decision: TradeIntent['decision'], fixedUnits: number): number {
   if (decision === 'NO_TRADE') return 0;
-  const units = decision === 'BUY' ? ENGINE_CONFIG.fixedUnits : -ENGINE_CONFIG.fixedUnits;
+  const units = decision === 'BUY' ? fixedUnits : -fixedUnits;
   return usdDeltaFromExposure(pair, units);
 }
 
@@ -71,6 +77,7 @@ export function runRiskChecks(
 ): RiskCheckResult {
   const reasons: string[] = [];
   const maxConcurrentTrades = Number(options?.maxConcurrentTrades || 1);
+  const engine = options?.engine || ENGINE_CONFIG;
 
   const entryPrice = Number(intent.entryPrice || 0);
   const stopLoss = Number(intent.stopLoss || 0);
@@ -80,7 +87,7 @@ export function runRiskChecks(
   let rr = 0;
   let riskUsd = 0;
 
-  const effectiveUnits = Number(intent.units && intent.units > 0 ? intent.units : ENGINE_CONFIG.fixedUnits);
+  const effectiveUnits = Number(intent.units && intent.units > 0 ? intent.units : engine.fixedUnits);
 
   if (intent.decision === 'NO_TRADE') {
     reasons.push('Intent decision is NO_TRADE.');
@@ -105,21 +112,21 @@ export function runRiskChecks(
   const pipValueUsd = estimatePipValueUsd(marketContext.pair, effectiveUnits, marketContext.price.mid);
   riskUsd = slPips * pipValueUsd;
 
-  if (riskUsd > ENGINE_CONFIG.riskPerTradeUsd) {
-    reasons.push(`Risk ${riskUsd.toFixed(2)} USD exceeds limit ${ENGINE_CONFIG.riskPerTradeUsd} USD.`);
+  if (riskUsd > engine.riskPerTradeUsd) {
+    reasons.push(`Risk ${riskUsd.toFixed(2)} USD exceeds limit ${engine.riskPerTradeUsd} USD.`);
   }
 
   if (marketContext.account.openTrades.length >= maxConcurrentTrades) {
     reasons.push(`Max concurrent trades reached (${maxConcurrentTrades}).`);
   }
 
-  if (marketContext.spread_pips > slPips * ENGINE_CONFIG.maxSpreadToSlRatio) {
-    const pct = Math.round(ENGINE_CONFIG.maxSpreadToSlRatio * 100);
+  if (marketContext.spread_pips > slPips * engine.maxSpreadToSlRatio) {
+    const pct = Math.round(engine.maxSpreadToSlRatio * 100);
     reasons.push(`Spread exceeds ${pct}% of stop-loss distance.`);
   }
 
-  if (rr < ENGINE_CONFIG.minRiskReward) {
-    reasons.push(`Risk:Reward ${rr.toFixed(2)} below minimum ${ENGINE_CONFIG.minRiskReward}.`);
+  if (rr < engine.minRiskReward) {
+    reasons.push(`Risk:Reward ${rr.toFixed(2)} below minimum ${engine.minRiskReward}.`);
   }
 
   const sameInstrumentTrades = marketContext.account.openTrades.filter((trade) => trade.instrument === marketContext.pair);
@@ -160,7 +167,7 @@ export function runRiskChecks(
   }
 
   const existingUsdExposure = getExistingUsdExposureScore(marketContext);
-  const candidateUsdExposure = getCandidateUsdExposure(marketContext.pair, intent.decision);
+  const candidateUsdExposure = getCandidateUsdExposure(marketContext.pair, intent.decision, engine.fixedUnits);
   if (existingUsdExposure > 0 && candidateUsdExposure > 0) {
     reasons.push('Correlated exposure blocked: USD-long exposure already exists.');
   }
