@@ -92,23 +92,52 @@ export async function POST(request: NextRequest) {
 
         const systemPrompt = wantsRussian
             ? `Ты профессиональный AI-ассистент трейдера.
+
 Проанализируй текущую рыночную ситуацию для ${instrument} на таймфрейме ${timeframe}.
 Данные свечей и текущие цены предоставлены в формате JSON.
-На основе этих данных:
-1. Оцени текущий тренд.
-2. Найди уровни поддержки и сопротивления.
-3. Предложи сценарий: Bullish (Покупка), Bearish (Продажа) или Flat (Ожидание).
-4. Укажи обоснование, стоп-лосс (SL) и тейк-профит (TP) при необходимости.
-Пиши ответ на русском языке. Ответ должен быть кратким и четким.`
+
+ВАЖНО:
+- Верни ОДИН валидный JSON и НИЧЕГО кроме JSON (без markdown).
+- Выбери recommendedStrategyId строго из: "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1".
+
+Схема ответа:
+{
+  "analysisText": "строка, в которой ЯВНО упомянута стратегия, например: Strategy: breakout_v1 ...",
+  "decision": "BUY" | "SELL" | "WAIT",
+  "entry": number | null,
+  "stopLoss": number | null,
+  "takeProfit": number | null,
+  "recommendedStrategyId": "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1",
+  "recommendedStrategyReason": "короткое объяснение почему"
+}
+
+Требования:
+- В analysisText обязательно должна быть строка вида: "Strategy: <recommendedStrategyId>".
+- Пиши по-русски, но торговые термины BUY/SELL/TP/SL/RR/Spread/Units оставляй на английском.
+- Будь кратким.`
             : `You are a professional trader assistant.
+
 Analyze the current market situation for ${instrument} on timeframe ${timeframe}.
 Candles and current prices are provided as JSON.
-Based on this data:
-1) Assess the current trend.
-2) Identify support and resistance.
-3) Provide a scenario: Bullish (Buy), Bearish (Sell) or Flat (Wait).
-4) Provide reasoning, Stop Loss (SL) and Take Profit (TP) if appropriate.
-Write the answer in English. Keep it concise and clear.`;
+
+IMPORTANT:
+- Return ONE valid JSON object and NOTHING else (no markdown).
+- Choose recommendedStrategyId strictly from: "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1".
+
+Response schema:
+{
+  "analysisText": "string that EXPLICITLY mentions strategy, e.g. Strategy: breakout_v1 ...",
+  "decision": "BUY" | "SELL" | "WAIT",
+  "entry": number | null,
+  "stopLoss": number | null,
+  "takeProfit": number | null,
+  "recommendedStrategyId": "h1_trend_m15_pullback" | "flat_range_v1" | "breakout_v1",
+  "recommendedStrategyReason": "short reason"
+}
+
+Requirements:
+- analysisText MUST contain: "Strategy: <recommendedStrategyId>".
+- Keep it concise.`;
 
         if (!Array.isArray(chartData) || chartData.length === 0) {
             return NextResponse.json({ error: 'Missing candle data for analysis' }, { status: 400 });
@@ -159,14 +188,57 @@ Provide your analysis and recommendation.`;
             throw new Error(`All analysis models failed. ${modelErrors.join(' | ')}`);
         }
 
-        const analysis = completion.choices[0].message.content || 'AI did not return analysis text.';
-        const recommendedStrategy = detectRecommendedStrategy(analysis);
+        const rawContent = completion.choices[0].message.content || '';
 
-        const action = detectAction(analysis);
-        const entryPrice = parsePrice(analysis, /(?:entry|вход)\s*[:=\-]?\s*([0-9]+[\.,]?[0-9]*)/i)
-            ?? (pricing?.asks?.[0]?.price ? Number(pricing.asks[0].price) : null);
-        const stopLoss = parsePrice(analysis, /(?:stop\s*-?\s*loss|\bsl\b|стоп\s*-?\s*лосс)\s*[:=\-]?\s*([0-9]+[\.,]?[0-9]*)/i);
-        const takeProfit = parsePrice(analysis, /(?:take\s*-?\s*profit|\btp\b|тейк\s*-?\s*профит)\s*[:=\-]?\s*([0-9]+[\.,]?[0-9]*)/i);
+        // Preferred: JSON output from the model.
+        let analysisText: string = '';
+        let action: TradeAction = 'WAIT';
+        let entryPrice: number | null = null;
+        let stopLoss: number | null = null;
+        let takeProfit: number | null = null;
+        let recommendedStrategyId: StrategyId | null = null;
+        let recommendedStrategyReason: string | null = null;
+
+        try {
+            const parsed = JSON.parse(rawContent);
+            analysisText = String(parsed?.analysisText || '').trim();
+            action = String(parsed?.decision || 'WAIT').toUpperCase() as TradeAction;
+            entryPrice = parsed?.entry == null ? null : Number(parsed.entry);
+            stopLoss = parsed?.stopLoss == null ? null : Number(parsed.stopLoss);
+            takeProfit = parsed?.takeProfit == null ? null : Number(parsed.takeProfit);
+            recommendedStrategyId = String(parsed?.recommendedStrategyId || '').trim() as StrategyId;
+            recommendedStrategyReason = String(parsed?.recommendedStrategyReason || '').trim();
+        } catch {
+            // Fallback: old free-text mode.
+            const analysis = rawContent || 'AI did not return analysis text.';
+            const recommendedStrategy = detectRecommendedStrategy(analysis);
+            const normalizedStrategyLine = `Strategy: ${recommendedStrategy.id}`;
+
+            analysisText = analysis.includes('Strategy:') ? analysis : `${normalizedStrategyLine}\n${analysis}`;
+            action = detectAction(analysisText);
+            entryPrice = parsePrice(analysisText, /(?:entry|вход)\s*[:=\-]?\s*([0-9]+[\.,]?[0-9]*)/i)
+                ?? (pricing?.asks?.[0]?.price ? Number(pricing.asks[0].price) : null);
+            stopLoss = parsePrice(analysisText, /(?:stop\s*-?\s*loss|\bsl\b|стоп\s*-?\s*лосс)\s*[:=\-]?\s*([0-9]+[\.,]?[0-9]*)/i);
+            takeProfit = parsePrice(analysisText, /(?:take\s*-?\s*profit|\btp\b|тейк\s*-?\s*профит)\s*[:=\-]?\s*([0-9]+[\.,]?[0-9]*)/i);
+            recommendedStrategyId = recommendedStrategy.id;
+            recommendedStrategyReason = recommendedStrategy.reason;
+        }
+
+        // sanitize
+        if (!['BUY', 'SELL', 'WAIT'].includes(action)) action = 'WAIT';
+        if (recommendedStrategyId && !['h1_trend_m15_pullback', 'flat_range_v1', 'breakout_v1'].includes(recommendedStrategyId)) {
+            recommendedStrategyId = null;
+        }
+
+        if (!analysisText) {
+            const fallbackStrategy = recommendedStrategyId || detectRecommendedStrategy(rawContent).id;
+            analysisText = `Strategy: ${fallbackStrategy}`;
+        }
+
+        // Ensure strategy is explicitly mentioned in the visible text.
+        if (!/\bStrategy\s*:/i.test(analysisText)) {
+            analysisText = `Strategy: ${recommendedStrategyId || detectRecommendedStrategy(analysisText).id}\n${analysisText}`;
+        }
 
         const signal = await prisma.tradeSignal.create({
             data: {
@@ -177,7 +249,7 @@ Provide your analysis and recommendation.`;
                 entryPrice,
                 stopLoss,
                 takeProfit,
-                rationale: analysis,
+                rationale: analysisText,
                 status: 'open',
             },
         });
@@ -195,12 +267,12 @@ Provide your analysis and recommendation.`;
             }];
 
         return NextResponse.json({
-            analysis,
+            analysis: analysisText,
             signal,
             recommendedOrders,
             modelUsed,
-            recommendedStrategyId: recommendedStrategy.id,
-            recommendedStrategyReason: recommendedStrategy.reason,
+            recommendedStrategyId: recommendedStrategyId,
+            recommendedStrategyReason: recommendedStrategyReason,
         });
     } catch (error: any) {
         console.error('OpenAI Analysis Error:', error?.message || error);
