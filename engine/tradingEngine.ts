@@ -10,12 +10,71 @@ import { calculateScore } from './scoring';
 import { updateEngineStatus } from './statusStore';
 import { logEngineCycle, logScannerCycle, logScannerSummary } from './cycleLogger';
 import { saveScannerSnapshot } from './scannerSnapshot';
-import type { ScoredTradeCandidate, ScannerPairStatus, TradeIntent } from '../services/types';
+import type { MarketContext, ScoredTradeCandidate, ScannerPairStatus, TradeIntent } from '../services/types';
 
 interface EngineInput {
   userId: string;
   pair?: string;
   execute?: boolean;
+}
+
+interface PairStrategyRecommendation {
+  recommendedStrategyId: string;
+  appliedStrategyId: string;
+  confidence: number;
+  reason: string;
+}
+
+function toPipSize(pair: string): number {
+  return pair.includes('JPY') ? 0.01 : 0.0001;
+}
+
+function recommendStrategyForPair(params: {
+  marketContext: MarketContext;
+  activeStrategyId: string;
+  availableStrategyIds: Set<string>;
+}): PairStrategyRecommendation {
+  const { marketContext, activeStrategyId, availableStrategyIds } = params;
+  const trend = marketContext.indicators.trend_h1;
+  const momentum = marketContext.indicators.momentum_m15;
+  const spreadPips = marketContext.spread_pips;
+  const atrPips = marketContext.indicators.atr_m15 / toPipSize(marketContext.pair);
+
+  const hasRangeStrategy = availableStrategyIds.has('flat_range_v1');
+  const hasTrendStrategy = availableStrategyIds.has('h1_trend_m15_pullback');
+
+  if (hasRangeStrategy && trend === 'RANGE' && spreadPips <= 2.2 && atrPips <= 12) {
+    return {
+      recommendedStrategyId: 'flat_range_v1',
+      appliedStrategyId: 'flat_range_v1',
+      confidence: 0.82,
+      reason: `Range regime detected (trend=${trend}, atr_pips=${atrPips.toFixed(2)}, spread=${spreadPips.toFixed(2)}).`,
+    };
+  }
+
+  if (hasTrendStrategy && (trend === 'BULL' || trend === 'BEAR')) {
+    return {
+      recommendedStrategyId: 'h1_trend_m15_pullback',
+      appliedStrategyId: 'h1_trend_m15_pullback',
+      confidence: momentum === 'NEUTRAL' ? 0.7 : 0.78,
+      reason: `Trend regime detected (trend=${trend}, momentum=${momentum}).`,
+    };
+  }
+
+  const fallback = availableStrategyIds.has(activeStrategyId)
+    ? activeStrategyId
+    : hasTrendStrategy
+      ? 'h1_trend_m15_pullback'
+      : hasRangeStrategy
+        ? 'flat_range_v1'
+        : Array.from(availableStrategyIds)[0] || activeStrategyId;
+
+  return {
+    recommendedStrategyId: fallback,
+    appliedStrategyId: fallback,
+    confidence: 0.55,
+    reason: `Fallback strategy selected for mixed/unclear regime (trend=${trend}, atr_pips=${atrPips.toFixed(2)}, spread=${spreadPips.toFixed(2)}).`,
+  };
 }
 
 export async function runTradingEngine(input: EngineInput) {
@@ -24,8 +83,11 @@ export async function runTradingEngine(input: EngineInput) {
   const tradingConfig = await loadTradingConfig();
   const activeStrategyId = strategyConfig.activeStrategyId;
   const registry = getStrategyRegistry();
+  const strategies = registry.list();
   const strategy = registry.get(activeStrategyId);
   const watchlist = input.pair ? [String(input.pair).toUpperCase()] : tradingConfig.watchlist;
+  const requiredTimeframes = Array.from(new Set(strategies.flatMap((item) => item.requiredTimeframes)));
+  const strategyIds = new Set(strategies.map((item) => item.id));
 
   if (!strategy) {
     const reason = `Active strategy not found: ${activeStrategyId}`;
@@ -67,11 +129,15 @@ export async function runTradingEngine(input: EngineInput) {
   const validCandidates: ScoredTradeCandidate[] = [];
 
   for (const pair of watchlist) {
-    const rawData = await fetchMarketData(input.userId, pair, strategy.requiredTimeframes);
+    const rawData = await fetchMarketData(input.userId, pair, requiredTimeframes);
 
     if (!rawData) {
       scannedPairs.push({
         pair,
+        recommendedStrategyId: activeStrategyId,
+        appliedStrategyId: activeStrategyId,
+        recommendationConfidence: 0,
+        recommendationReason: 'No market data available; fallback strategy marker only.',
         decision: 'NO_TRADE',
         score: null,
         rr: 0,
@@ -85,11 +151,41 @@ export async function runTradingEngine(input: EngineInput) {
     }
 
     const marketContext = buildMarketContext(rawData);
-    const intent: TradeIntent = strategy.evaluate(marketContext, strategyConfig.params || {});
+    const recommendation = recommendStrategyForPair({
+      marketContext,
+      activeStrategyId,
+      availableStrategyIds: strategyIds,
+    });
+    const strategyForPair = registry.get(recommendation.appliedStrategyId) || strategy;
+
+    if (!strategyForPair) {
+      scannedPairs.push({
+        pair,
+        recommendedStrategyId: recommendation.recommendedStrategyId,
+        appliedStrategyId: recommendation.appliedStrategyId,
+        recommendationConfidence: recommendation.confidence,
+        recommendationReason: recommendation.reason,
+        decision: 'NO_TRADE',
+        score: null,
+        rr: 0,
+        spread: marketContext.spread_pips,
+        rejected: true,
+        rejectionReasonCode: 'ACTIVE_STRATEGY_NOT_FOUND',
+        metrics: { requested_strategy: recommendation.appliedStrategyId },
+        rejectionReasons: ['Strategy plugin is unavailable for selected pair.'],
+      });
+      continue;
+    }
+
+    const intent: TradeIntent = strategyForPair.evaluate(marketContext, strategyConfig.params || {});
 
     if (intent.decision === 'NO_TRADE') {
       scannedPairs.push({
         pair,
+        recommendedStrategyId: recommendation.recommendedStrategyId,
+        appliedStrategyId: strategyForPair.id,
+        recommendationConfidence: recommendation.confidence,
+        recommendationReason: recommendation.reason,
         decision: intent.decision,
         score: null,
         rr: 0,
@@ -109,6 +205,10 @@ export async function runTradingEngine(input: EngineInput) {
     if (!riskCheck.passed) {
       scannedPairs.push({
         pair,
+        recommendedStrategyId: recommendation.recommendedStrategyId,
+        appliedStrategyId: strategyForPair.id,
+        recommendationConfidence: recommendation.confidence,
+        recommendationReason: recommendation.reason,
         decision: intent.decision,
         score: null,
         rr: riskCheck.rr,
@@ -130,6 +230,10 @@ export async function runTradingEngine(input: EngineInput) {
     if (!scoreResult.passed) {
       scannedPairs.push({
         pair,
+        recommendedStrategyId: recommendation.recommendedStrategyId,
+        appliedStrategyId: strategyForPair.id,
+        recommendationConfidence: recommendation.confidence,
+        recommendationReason: recommendation.reason,
         decision: intent.decision,
         score: null,
         rr: scoreResult.rr,
@@ -144,6 +248,10 @@ export async function runTradingEngine(input: EngineInput) {
 
     scannedPairs.push({
       pair,
+      recommendedStrategyId: recommendation.recommendedStrategyId,
+      appliedStrategyId: strategyForPair.id,
+      recommendationConfidence: recommendation.confidence,
+      recommendationReason: recommendation.reason,
       decision: intent.decision,
       score: scoreResult.score,
       rr: scoreResult.rr,
@@ -156,6 +264,7 @@ export async function runTradingEngine(input: EngineInput) {
 
     validCandidates.push({
       pair,
+      strategyId: strategyForPair.id,
       intent,
       score: scoreResult.score,
       rejectionReasons: [],
@@ -168,6 +277,7 @@ export async function runTradingEngine(input: EngineInput) {
 
   const candidates = validCandidates.map((candidate) => ({
     instrument: candidate.pair,
+    strategyId: candidate.strategyId,
     side: candidate.intent.decision,
     type: candidate.intent.entryType,
     entry: candidate.intent.entryPrice,
@@ -236,6 +346,7 @@ export async function runTradingEngine(input: EngineInput) {
     stop_loss: selected.intent.stopLoss || 0,
     take_profit: selected.intent.takeProfit || 0,
     reasoning: selected.intent.rationale,
+    strategyId: selected.strategyId,
   };
 
   const openPositionsCount = selected.marketContext.account.openPositions.length;
@@ -260,7 +371,7 @@ export async function runTradingEngine(input: EngineInput) {
       topReason: reason,
     });
     await logEngineCycle({
-      strategyId: activeStrategyId,
+      strategyId: selected.strategyId,
       marketContext: selected.marketContext,
       intent: selected.intent,
       risk: selected.riskCheck,
@@ -306,7 +417,7 @@ export async function runTradingEngine(input: EngineInput) {
       topReason: reason,
     });
     await logEngineCycle({
-      strategyId: activeStrategyId,
+      strategyId: selected.strategyId,
       marketContext: selected.marketContext,
       intent: selected.intent,
       risk: selected.riskCheck,
@@ -354,7 +465,7 @@ export async function runTradingEngine(input: EngineInput) {
     topReason: reason,
   });
   await logEngineCycle({
-    strategyId: activeStrategyId,
+    strategyId: selected.strategyId,
     marketContext: selected.marketContext,
     intent: selected.intent,
     risk: selected.riskCheck,

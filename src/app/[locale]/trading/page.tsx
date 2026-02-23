@@ -12,6 +12,20 @@ const INSTRUMENTS = [
     'AUD_USD', 'USD_CAD', 'NZD_USD', 'EUR_GBP',
 ];
 
+const AI_REFRESH_INTERVAL_MIN = 15;
+const FORCE_REFRESH_ON_BREAKOUT = true;
+const FORCE_REFRESH_ON_POSITION_CLOSE = true;
+
+type AiRefreshReason = 'MANUAL' | 'TIME_INTERVAL' | 'MARKET_REGIME_CHANGE' | 'POSITION_CLOSE';
+
+interface MarketRegimeSnapshot {
+    atr: number;
+    rangeLow: number;
+    rangeHigh: number;
+    mid: number;
+    hash: string;
+}
+
 interface TerminalTrade {
     id: string;
     instrument: string;
@@ -90,6 +104,10 @@ interface EngineRunResponse {
 
 interface ScannerPairRow {
     pair: string;
+    recommendedStrategyId?: string;
+    appliedStrategyId?: string;
+    recommendationConfidence?: number;
+    recommendationReason?: string;
     decision: 'BUY' | 'SELL' | 'NO_TRADE';
     score: number | null;
     rr: number;
@@ -168,6 +186,67 @@ function formatCountdown(totalSeconds: number): string {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+function getMidFromPricing(pricing: any): number | null {
+    const ask = Number(pricing?.asks?.[0]?.price ?? NaN);
+    const bid = Number(pricing?.bids?.[0]?.price ?? NaN);
+    if (!Number.isFinite(ask) || !Number.isFinite(bid)) return null;
+    return (ask + bid) / 2;
+}
+
+function calculateAtrFromCandles(candles: any[], period = 14): number {
+    if (!Array.isArray(candles) || candles.length < period + 1) return 0;
+
+    let trSum = 0;
+    for (let index = candles.length - period; index < candles.length; index += 1) {
+        const current = candles[index];
+        const prevClose = Number(candles[index - 1]?.mid?.c ?? candles[index - 1]?.close ?? 0);
+        const high = Number(current?.mid?.h ?? current?.high ?? 0);
+        const low = Number(current?.mid?.l ?? current?.low ?? 0);
+
+        if (![prevClose, high, low].every(Number.isFinite)) {
+            return 0;
+        }
+
+        const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+        trSum += tr;
+    }
+
+    return trSum / period;
+}
+
+function buildMarketRegimeSnapshot(candles: any[], pricing: any): MarketRegimeSnapshot | null {
+    if (!Array.isArray(candles) || candles.length < 20) return null;
+    const windowCandles = candles.slice(-20);
+    const highs = windowCandles.map((candle) => Number(candle?.mid?.h ?? candle?.high ?? NaN));
+    const lows = windowCandles.map((candle) => Number(candle?.mid?.l ?? candle?.low ?? NaN));
+
+    if (![...highs, ...lows].every(Number.isFinite)) return null;
+
+    const rangeHigh = Math.max(...highs);
+    const rangeLow = Math.min(...lows);
+    const mid = getMidFromPricing(pricing);
+
+    if (!Number.isFinite(rangeHigh) || !Number.isFinite(rangeLow) || !Number.isFinite(mid)) {
+        return null;
+    }
+
+    const atr = calculateAtrFromCandles(candles, 14);
+    const hash = [
+        (atr || 0).toFixed(5),
+        rangeLow.toFixed(5),
+        rangeHigh.toFixed(5),
+        Number(mid).toFixed(5),
+    ].join('|');
+
+    return {
+        atr,
+        rangeLow,
+        rangeHigh,
+        mid,
+        hash,
+    };
+}
+
 /**
  * Trading Terminal page.
  * Shows a live candlestick chart with real-time bid/ask pricing
@@ -209,7 +288,15 @@ export default function TradingDashboard() {
     const [autoDryRunIntervalSec, setAutoDryRunIntervalSec] = useState(60);
     const [autoCountdownSec, setAutoCountdownSec] = useState<number | null>(null);
     const [lastAutoRunAt, setLastAutoRunAt] = useState<string | null>(null);
+    const [lastAiUpdateTimestamp, setLastAiUpdateTimestamp] = useState<number | null>(null);
+    const [aiScenarioVersion, setAiScenarioVersion] = useState(0);
+    const [marketRegimeHash, setMarketRegimeHash] = useState<string | null>(null);
+    const [aiRefreshReason, setAiRefreshReason] = useState<AiRefreshReason | null>(null);
     const engineLoadingRef = useRef(false);
+    const lastAiUpdateRef = useRef<number | null>(null);
+    const autoCycleRunningRef = useRef(false);
+    const marketRegimeSnapshotRef = useRef<MarketRegimeSnapshot | null>(null);
+    const lastSeenTradesCountRef = useRef<number | null>(null);
     const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('ticket');
     const [orderTicket, setOrderTicket] = useState<OrderTicketState>({
         side: 'BUY',
@@ -229,6 +316,19 @@ export default function TradingDashboard() {
         if (reason.includes('NO_TRADE: near news window')) return t('scannerReasonNearNewsWindow');
         return reason;
     }, [t]);
+
+    const localizeAiRefreshReason = useCallback((reason: AiRefreshReason | null) => {
+        if (!reason) return t('aiRefreshNever');
+        if (reason === 'MANUAL') return t('aiRefreshReasonManual');
+        if (reason === 'TIME_INTERVAL') return t('aiRefreshReasonTimeInterval');
+        if (reason === 'MARKET_REGIME_CHANGE') return t('aiRefreshReasonMarketRegimeChange');
+        if (reason === 'POSITION_CLOSE') return t('aiRefreshReasonPositionClose');
+        return reason;
+    }, [t]);
+
+    useEffect(() => {
+        lastAiUpdateRef.current = lastAiUpdateTimestamp;
+    }, [lastAiUpdateTimestamp]);
 
     const tradeReadiness = useMemo<TradeReadiness>(() => {
         const analysisText = (aiAnalysis || '').toUpperCase();
@@ -646,140 +746,35 @@ export default function TradingDashboard() {
         }
     };
 
-    const handleRunEngine = async (execute: boolean) => {
-        setEngineLoading(true);
-        setEngineMessage(null);
-        setEngineResult(null);
+    const requestNewAiScenario = useCallback(async (reason: AiRefreshReason, preloadedCandles?: any[]) => {
+        if (isAnalyzing) return;
 
-        try {
-            const res = await fetch('/api/trading/engine', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pair: instrument, execute }),
-            });
-
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data?.error || t('engineRunFailed'));
-            }
-
-            setEngineResult(data);
-            setEngineMessage(
-                data?.status === 'EXECUTED'
-                    ? t('engineExecuted')
-                    : data?.status === 'READY'
-                        ? t('engineReady')
-                        : t('engineNoTrade')
-            );
-
-            if (data?.aiDecision && data.aiDecision.decision !== 'NO_TRADE') {
-                setOrderTicket((prev) => ({
-                    ...prev,
-                    side: data.aiDecision.decision === 'SELL' ? 'SELL' : 'BUY',
-                    orderType: execute ? 'MARKET' : prev.orderType,
-                    entryPrice: data.aiDecision.entry ? String(data.aiDecision.entry) : prev.entryPrice,
-                    stopLoss: data.aiDecision.stop_loss ? String(data.aiDecision.stop_loss) : prev.stopLoss,
-                    takeProfit: data.aiDecision.take_profit ? String(data.aiDecision.take_profit) : prev.takeProfit,
-                }));
-            }
-
-            if (execute) {
-                await fetchWorkspace();
-            }
-
-            await fetchScannerStatus();
-
-            if (!execute) {
-                setLastAutoRunAt(new Date().toLocaleTimeString());
-            }
-        } catch (err: any) {
-            setEngineMessage(err?.message || t('engineError'));
-        } finally {
-            setEngineLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        engineLoadingRef.current = engineLoading;
-    }, [engineLoading]);
-
-    useEffect(() => {
-        if (!autoDryRunEnabled) {
-            setAutoCountdownSec(null);
-            return;
-        }
-
-        const safeIntervalSec = Math.max(15, autoDryRunIntervalSec);
-        let nextRunAt = Date.now() + safeIntervalSec * 1000;
-        setAutoCountdownSec(safeIntervalSec);
-
-        const tick = setInterval(() => {
-            const now = Date.now();
-            const remaining = Math.max(0, Math.ceil((nextRunAt - now) / 1000));
-            setAutoCountdownSec(remaining);
-
-            if (remaining <= 0 && !engineLoadingRef.current) {
-                handleRunEngine(false);
-                nextRunAt = Date.now() + safeIntervalSec * 1000;
-                setAutoCountdownSec(safeIntervalSec);
-            }
-        }, 1000);
-
-        return () => clearInterval(tick);
-    }, [autoDryRunEnabled, autoDryRunIntervalSec, instrument]);
-
-    const scannerRows = useMemo(() => {
-        if (!scannerStatus?.scannedPairs?.length) return [];
-        return [...scannerStatus.scannedPairs].sort((a, b) => {
-            const scoreA = a.score ?? -1;
-            const scoreB = b.score ?? -1;
-            return scoreB - scoreA;
-        });
-    }, [scannerStatus]);
-    const selectedScannerPair = scannerStatus?.selectedTrade || null;
-    const bestScannerPair = useMemo(() => (
-        scannerRows.find((row) => !row.rejected && row.score != null)?.pair || null
-    ), [scannerRows]);
-    const filteredScannerRows = useMemo(() => scannerRows.filter((row) => {
-        if (scannerFilter === 'VALID') return !row.rejected;
-        if (scannerFilter === 'REJECTED') return row.rejected;
-        return true;
-    }), [scannerRows, scannerFilter]);
-
-    const safeAutoIntervalSec = Math.max(15, autoDryRunIntervalSec);
-    const autoProgressPercent = autoCountdownSec == null
-        ? 0
-        : Math.min(100, Math.max(0, ((safeAutoIntervalSec - autoCountdownSec) / safeAutoIntervalSec) * 100));
-    const autoCountdownUrgent = autoCountdownSec != null && autoCountdownSec > 0 && autoCountdownSec <= 5;
-
-    /**
-     * Request AI analysis for the current instrument on M15 timeframe.
-     * Parses the response and saves it as a TradeSignal via /api/signals.
-     */
-    const handleAIAnalysis = async () => {
         setIsAnalyzing(true);
         setAiAnalysis(null);
         setError(null);
         setSaved(false);
 
         try {
-            // 1. Fetch candle data
-            const candlesRes = await fetch(`/api/oanda/candles?instrument=${instrument}&granularity=M15&count=200`);
-            if (candlesRes.status === 403) throw new Error('missingKeysError');
-            const candlesData = await candlesRes.json();
-            if (!candlesData?.candles) throw new Error(candlesData?.error || 'No candles data returned');
+            let candles = preloadedCandles;
+            if (!Array.isArray(candles) || !candles.length) {
+                const candlesRes = await fetch(`/api/oanda/candles?instrument=${instrument}&granularity=M15&count=200`);
+                if (candlesRes.status === 403) throw new Error('missingKeysError');
+                const candlesData = await candlesRes.json();
+                if (!candlesData?.candles) throw new Error(candlesData?.error || 'No candles data returned');
+                candles = candlesData.candles;
+            }
 
-            // 2. Request AI analysis
             const aiRes = await fetch('/api/ai/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    chartData: candlesData.candles,
+                    chartData: candles,
                     pricing,
                     instrument,
                     timeframe: 'M15',
                 }),
             });
+
             const aiData = await aiRes.json();
             if (aiData.error) {
                 if (aiRes.status === 403) throw new Error('missingKeysError');
@@ -819,13 +814,234 @@ export default function TradingDashboard() {
                 }));
             }
 
-            // 3. Signal is persisted server-side in /api/ai/analyze
+            const snapshot = buildMarketRegimeSnapshot(candles, pricing);
+            if (snapshot) {
+                marketRegimeSnapshotRef.current = snapshot;
+                setMarketRegimeHash(snapshot.hash);
+            }
+
+            const oldVersion = aiScenarioVersion;
+            const newVersion = oldVersion + 1;
+            setAiScenarioVersion(newVersion);
+            const nowTs = Date.now();
+            setLastAiUpdateTimestamp(nowTs);
+            setAiRefreshReason(reason);
+
+            console.info('AI_REFRESH_TRIGGERED', {
+                reason,
+                oldVersion,
+                newVersion,
+                instrument,
+                marketRegimeHash: snapshot?.hash || null,
+            });
+
             setSaved(Boolean(aiData?.signal?.id));
         } catch (err: any) {
-            setError(err.message);
+            setError(err?.message || 'AI refresh failed');
         } finally {
             setIsAnalyzing(false);
         }
+    }, [aiScenarioVersion, instrument, isAnalyzing, pricing, t, updateStrategy]);
+
+    const maybeRefreshAiScenario = useCallback(async () => {
+        const candlesRes = await fetch(`/api/oanda/candles?instrument=${instrument}&granularity=M15&count=200`);
+        if (!candlesRes.ok) return;
+
+        const candlesData = await candlesRes.json().catch(() => null);
+        const candles = candlesData?.candles;
+        if (!Array.isArray(candles) || !candles.length) return;
+
+        const currentSnapshot = buildMarketRegimeSnapshot(candles, pricing);
+        const now = Date.now();
+        const lastAiTs = lastAiUpdateRef.current;
+        const minutesSinceAi = lastAiTs ? (now - lastAiTs) / 60000 : Number.POSITIVE_INFINITY;
+
+        if (minutesSinceAi >= AI_REFRESH_INTERVAL_MIN) {
+            await requestNewAiScenario('TIME_INTERVAL', candles);
+            return;
+        }
+
+        const previousSnapshot = marketRegimeSnapshotRef.current;
+        if (!currentSnapshot || !previousSnapshot) return;
+
+        const atrIncrease = previousSnapshot.atr > 0 && currentSnapshot.atr > previousSnapshot.atr * 1.3;
+        const breakout = currentSnapshot.mid > previousSnapshot.rangeHigh || currentSnapshot.mid < previousSnapshot.rangeLow;
+
+        if (atrIncrease || (FORCE_REFRESH_ON_BREAKOUT && breakout)) {
+            await requestNewAiScenario('MARKET_REGIME_CHANGE', candles);
+        }
+    }, [instrument, pricing, requestNewAiScenario]);
+
+    const handleRunEngine = async (execute: boolean, options?: { autoMode?: boolean }) => {
+        const autoMode = Boolean(options?.autoMode);
+        setEngineLoading(true);
+        setEngineMessage(null);
+        setEngineResult(null);
+
+        try {
+            const res = await fetch('/api/trading/engine', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pair: instrument, execute }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data?.error || t('engineRunFailed'));
+            }
+
+            let finalData = data;
+
+            if (autoMode && !execute && data?.status === 'READY') {
+                const executeRes = await fetch('/api/trading/engine', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pair: instrument, execute: true }),
+                });
+
+                const executeData = await executeRes.json();
+                if (!executeRes.ok) {
+                    throw new Error(executeData?.error || t('engineRunFailed'));
+                }
+
+                finalData = executeData;
+            }
+
+            setEngineResult(finalData);
+            setEngineMessage(
+                finalData?.status === 'EXECUTED'
+                    ? t('engineExecuted')
+                    : finalData?.status === 'READY'
+                        ? t('engineReady')
+                        : t('engineNoTrade')
+            );
+
+            if (finalData?.aiDecision && finalData.aiDecision.decision !== 'NO_TRADE') {
+                setOrderTicket((prev) => ({
+                    ...prev,
+                    side: finalData.aiDecision.decision === 'SELL' ? 'SELL' : 'BUY',
+                    orderType: finalData?.status === 'EXECUTED' ? 'MARKET' : prev.orderType,
+                    entryPrice: finalData.aiDecision.entry ? String(finalData.aiDecision.entry) : prev.entryPrice,
+                    stopLoss: finalData.aiDecision.stop_loss ? String(finalData.aiDecision.stop_loss) : prev.stopLoss,
+                    takeProfit: finalData.aiDecision.take_profit ? String(finalData.aiDecision.take_profit) : prev.takeProfit,
+                }));
+            }
+
+            if (execute || finalData?.status === 'EXECUTED') {
+                await fetchWorkspace();
+            }
+
+            await fetchScannerStatus();
+
+            if (!execute) {
+                setLastAutoRunAt(new Date().toLocaleTimeString());
+
+                const lastAiTs = lastAiUpdateRef.current;
+                const minutesSinceLastAI = lastAiTs == null ? null : Number(((Date.now() - lastAiTs) / 60000).toFixed(2));
+                console.info('DRY_RUN_CYCLE', {
+                    engine: activeStrategyId,
+                    aiScenarioVersion,
+                    minutesSinceLastAI,
+                    decision: finalData?.status || 'UNKNOWN',
+                });
+            }
+
+            if (autoMode && finalData?.status === 'EXECUTED') {
+                setAutoDryRunEnabled(false);
+                setAutoCountdownSec(null);
+            }
+        } catch (err: any) {
+            setEngineMessage(err?.message || t('engineError'));
+        } finally {
+            setEngineLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        engineLoadingRef.current = engineLoading;
+    }, [engineLoading]);
+
+    useEffect(() => {
+        if (!autoDryRunEnabled) {
+            setAutoCountdownSec(null);
+            return;
+        }
+
+        const safeIntervalSec = Math.max(15, autoDryRunIntervalSec);
+        let nextRunAt = Date.now() + safeIntervalSec * 1000;
+        setAutoCountdownSec(safeIntervalSec);
+
+        const tick = setInterval(() => {
+            const now = Date.now();
+            const remaining = Math.max(0, Math.ceil((nextRunAt - now) / 1000));
+            setAutoCountdownSec(remaining);
+
+            if (remaining <= 0 && !engineLoadingRef.current && !autoCycleRunningRef.current) {
+                autoCycleRunningRef.current = true;
+
+                void (async () => {
+                    try {
+                        await maybeRefreshAiScenario();
+                        await handleRunEngine(false, { autoMode: true });
+                    } finally {
+                        nextRunAt = Date.now() + safeIntervalSec * 1000;
+                        setAutoCountdownSec(safeIntervalSec);
+                        autoCycleRunningRef.current = false;
+                    }
+                })();
+            }
+        }, 1000);
+
+        return () => clearInterval(tick);
+    }, [autoDryRunEnabled, autoDryRunIntervalSec, instrument, maybeRefreshAiScenario]);
+
+    useEffect(() => {
+        const currentCount = trades.length;
+        const previousCount = lastSeenTradesCountRef.current;
+
+        if (previousCount == null) {
+            lastSeenTradesCountRef.current = currentCount;
+            return;
+        }
+
+        const closedPositionDetected = FORCE_REFRESH_ON_POSITION_CLOSE && previousCount > currentCount;
+        lastSeenTradesCountRef.current = currentCount;
+
+        if (closedPositionDetected) {
+            void requestNewAiScenario('POSITION_CLOSE');
+        }
+    }, [requestNewAiScenario, trades.length]);
+
+    const scannerRows = useMemo(() => {
+        if (!scannerStatus?.scannedPairs?.length) return [];
+        return [...scannerStatus.scannedPairs].sort((a, b) => {
+            const scoreA = a.score ?? -1;
+            const scoreB = b.score ?? -1;
+            return scoreB - scoreA;
+        });
+    }, [scannerStatus]);
+    const selectedScannerPair = scannerStatus?.selectedTrade || null;
+    const bestScannerPair = useMemo(() => (
+        scannerRows.find((row) => !row.rejected && row.score != null)?.pair || null
+    ), [scannerRows]);
+    const filteredScannerRows = useMemo(() => scannerRows.filter((row) => {
+        if (scannerFilter === 'VALID') return !row.rejected;
+        if (scannerFilter === 'REJECTED') return row.rejected;
+        return true;
+    }), [scannerRows, scannerFilter]);
+
+    const safeAutoIntervalSec = Math.max(15, autoDryRunIntervalSec);
+    const autoProgressPercent = autoCountdownSec == null
+        ? 0
+        : Math.min(100, Math.max(0, ((safeAutoIntervalSec - autoCountdownSec) / safeAutoIntervalSec) * 100));
+    const autoCountdownUrgent = autoCountdownSec != null && autoCountdownSec > 0 && autoCountdownSec <= 5;
+
+    /**
+     * Request AI analysis for the current instrument on M15 timeframe.
+     * Parses the response and saves it as a TradeSignal via /api/signals.
+     */
+    const handleAIAnalysis = async () => {
+        await requestNewAiScenario('MANUAL');
     };
 
     return (
@@ -900,6 +1116,17 @@ export default function TradingDashboard() {
                         </div>
                     )}
 
+                    <div className="mt-2 rounded border border-gray-800 bg-gray-950/40 p-2 text-[10px] text-gray-400">
+                        <p>{t('aiScenarioVersion')}: <span className="text-gray-200">{aiScenarioVersion}</span></p>
+                        <p>
+                            {t('aiLastUpdated')}: <span className="text-gray-200">
+                                {lastAiUpdateTimestamp ? new Date(lastAiUpdateTimestamp).toLocaleTimeString() : t('aiRefreshNever')}
+                            </span>
+                        </p>
+                        <p>{t('aiRefreshReason')}: <span className="text-blue-300">{localizeAiRefreshReason(aiRefreshReason)}</span></p>
+                        <p>Regime Hash: <span className="text-gray-300">{marketRegimeHash || '—'}</span></p>
+                    </div>
+
                     {error && error === 'missingKeysError' ? (
                         <div className="mt-4 p-4 bg-yellow-900/50 border border-yellow-800 text-yellow-200 rounded-lg text-sm text-center">
                             <p className="mb-2">{t('missingKeysError')}</p>
@@ -913,7 +1140,7 @@ export default function TradingDashboard() {
                         </div>
                     ) : null}
 
-                    <div className="mt-3 max-h-80 overflow-y-auto">
+                    <div className="mt-3 min-h-[22rem] max-h-[36rem] overflow-y-auto">
                         {aiAnalysis ? (
                             <div className="bg-gray-800 p-3 rounded-lg text-sm text-gray-200 whitespace-pre-wrap leading-relaxed border border-gray-700">
                                 {aiAnalysis}
@@ -1162,6 +1389,12 @@ export default function TradingDashboard() {
                                                 <span>RR: <span className="text-gray-200">{row.rr?.toFixed?.(2) ?? '0.00'}</span></span>
                                                 <span>{t('scannerSpread')}: <span className="text-gray-200">{row.spread?.toFixed?.(2) ?? '0.00'}</span></span>
                                             </div>
+                                            {(row.appliedStrategyId || row.recommendedStrategyId) && (
+                                                <p className="mt-1 text-[10px] text-blue-300/90 line-clamp-2">
+                                                    {t('scannerStrategy')}: {row.appliedStrategyId || row.recommendedStrategyId}
+                                                    {typeof row.recommendationConfidence === 'number' ? ` (${Math.round(row.recommendationConfidence * 100)}%)` : ''}
+                                                </p>
+                                            )}
                                             {row.rejected && row.rejectionReasons?.length > 0 && (
                                                 <p className="mt-1 text-[10px] text-yellow-300/90 line-clamp-2">
                                                     {row.rejectionReasonCode ? `${row.rejectionReasonCode}: ` : ''}

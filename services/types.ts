@@ -77,6 +77,10 @@ export interface RiskCheckResult {
 
 export interface ScannerPairStatus {
   pair: string;
+  recommendedStrategyId?: string;
+  appliedStrategyId?: string;
+  recommendationConfidence?: number;
+  recommendationReason?: string;
   decision: TradeDecision;
   score: number | null;
   rr: number;
@@ -89,6 +93,7 @@ export interface ScannerPairStatus {
 
 export interface ScoredTradeCandidate {
   pair: string;
+  strategyId: string;
   intent: TradeIntent;
   score: number;
   rejectionReasons: string[];

@@ -237,6 +237,7 @@ async function simulateScan(strategyId: string, params: Record<string, unknown>)
 
     validCandidates.push({
       pair,
+      strategyId,
       intent,
       score: score.score,
       rejectionReasons: [],
