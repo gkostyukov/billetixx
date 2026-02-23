@@ -10,7 +10,7 @@
       "minSlAtr": 0.2
     },
     "soft": {
-      "rrTarget": 1.45,
+      "rrTarget": 1.5,
       "pullbackAtrRatio": 0.22,
       "zoneAtrTolerance": 0.45,
       "slAtrBuffer": 0.1,
