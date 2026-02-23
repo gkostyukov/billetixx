@@ -45,6 +45,25 @@ interface PairStrategyRecommendation {
   reason: string;
 }
 
+const lastSignalKeysByUserPair = new Map<string, string>();
+
+function getLatestClosedM15CandleTime(context: MarketContext): string | null {
+  const candles = context.candles.M15 || [];
+  for (let index = candles.length - 1; index >= 0; index -= 1) {
+    if (candles[index]?.complete) {
+      return candles[index].time;
+    }
+  }
+  return null;
+}
+
+function buildM15SignalKey(context: MarketContext, decision: TradeIntent['decision']): string | null {
+  if (decision === 'NO_TRADE') return null;
+  const candleTime = getLatestClosedM15CandleTime(context);
+  if (!candleTime) return null;
+  return `${candleTime}:${decision}`;
+}
+
 function toPipSize(pair: string): number {
   return pair.includes('JPY') ? 0.01 : 0.0001;
 }
@@ -62,6 +81,16 @@ function recommendStrategyForPair(params: {
 
   const hasRangeStrategy = availableStrategyIds.has('flat_range_v1');
   const hasTrendStrategy = availableStrategyIds.has('h1_trend_m15_pullback');
+  const hasBreakoutV2 = availableStrategyIds.has('breakout_v2');
+
+  if (hasBreakoutV2 && trend === 'RANGE' && atrPips >= 6.5 && spreadPips <= 3.2) {
+    return {
+      recommendedStrategyId: 'breakout_v2',
+      appliedStrategyId: 'breakout_v2',
+      confidence: momentum === 'NEUTRAL' ? 0.8 : 0.74,
+      reason: `Compression/range regime detected for breakout_v2 (trend=${trend}, atr_pips=${atrPips.toFixed(2)}, spread=${spreadPips.toFixed(2)}).`,
+    };
+  }
 
   if (hasRangeStrategy && trend === 'RANGE' && spreadPips <= 2.2 && atrPips <= 12) {
     return {
@@ -233,6 +262,31 @@ export async function runTradingEngine(input: EngineInput) {
       continue;
     }
 
+    const signalKey = buildM15SignalKey(marketContext, intent.decision);
+    const dedupeMapKey = `${input.userId}:${pair}:${strategyForPair.id}`;
+    if (signalKey && lastSignalKeysByUserPair.get(dedupeMapKey) === signalKey) {
+      scannedPairs.push({
+        pair,
+        recommendedStrategyId: recommendation.recommendedStrategyId,
+        appliedStrategyId: strategyForPair.id,
+        recommendationConfidence: recommendation.confidence,
+        recommendationReason: recommendation.reason,
+        decision: intent.decision,
+        score: null,
+        rr: 0,
+        spread: marketContext.spread_pips,
+        rejected: true,
+        rejectionReasonCode: 'DUPLICATE_M15_SIGNAL',
+        metrics: {
+          ...(intent.metrics || {}),
+          signal_key: signalKey,
+          dedupe_scope: 'user_pair_strategy',
+        },
+        rejectionReasons: ['Duplicate signal on the same closed M15 candle was suppressed.'],
+      });
+      continue;
+    }
+
     const riskCheck = runRiskChecks(marketContext, intent, {
       maxConcurrentTrades: tradingConfig.maxConcurrentTrades,
       engine: input.overrides?.engine,
@@ -309,6 +363,10 @@ export async function runTradingEngine(input: EngineInput) {
       marketContext,
       riskCheck,
     });
+
+    if (signalKey) {
+      lastSignalKeysByUserPair.set(dedupeMapKey, signalKey);
+    }
   }
 
   const candidates = validCandidates.map((candidate) => ({

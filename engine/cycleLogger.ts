@@ -62,11 +62,16 @@ export async function logScannerCycle(payload: {
         ts,
         strategyId: payload.strategyId,
         pair: pairResult.pair,
+        recommendedStrategyId: pairResult.recommendedStrategyId,
+        appliedStrategyId: pairResult.appliedStrategyId,
         decision: pairResult.decision,
         rr: pairResult.rr,
         spread: pairResult.spread,
         score: pairResult.score,
+        rejected: pairResult.rejected,
+        rejectionReasonCode: pairResult.rejectionReasonCode,
         rejectionReasons: pairResult.rejectionReasons,
+        metrics: pairResult.metrics || {},
         selectedTrade: payload.selectedTrade,
       };
 

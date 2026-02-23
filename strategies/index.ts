@@ -1,6 +1,6 @@
 import { StrategyRegistry } from './StrategyRegistry';
 import { h1TrendM15PullbackStrategy } from './h1TrendM15Pullback';
-import { breakoutTemplateStrategy } from './breakoutTemplate';
+import { breakoutTemplateStrategy, breakoutV2Strategy } from './breakoutTemplate';
 import { flatRangeFadeStrategy } from './flatRangeFade';
 
 let registrySingleton: StrategyRegistry | null = null;
@@ -11,6 +11,7 @@ export function getStrategyRegistry(): StrategyRegistry {
   const registry = new StrategyRegistry();
   registry.register(h1TrendM15PullbackStrategy);
   registry.register(breakoutTemplateStrategy);
+  registry.register(breakoutV2Strategy);
   registry.register(flatRangeFadeStrategy);
 
   registrySingleton = registry;

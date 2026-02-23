@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:flat-range": "tsx scripts/test-flat-range-strategy.ts",
+    "test:breakout-v2": "tsx scripts/test-breakout-v2-strategy.ts",
     "analyze:dry-run": "tsx scripts/analyze-dry-run-logs.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
