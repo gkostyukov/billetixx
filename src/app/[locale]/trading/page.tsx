@@ -52,8 +52,9 @@ interface TerminalPosition {
 interface TerminalActivity {
     id: string;
     type: string;
-    instrument?: string;
-    time?: string;
+    instrument?: string | null;
+    time?: string | null;
+    details?: string | null;
 }
 
 interface NewsHeadline {
@@ -1627,6 +1628,9 @@ export default function TradingDashboard() {
                                     {activity.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoActivity')}</p> : activity.map((item) => (
                                         <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs">
                                             <p className="text-gray-200">{item.type}{item.instrument ? ` · ${formatInstrumentLabel(item.instrument)}` : ''}</p>
+                                            {item.details ? (
+                                                <p className="text-[11px] text-gray-400 line-clamp-2">{item.details}</p>
+                                            ) : null}
                                             <p className="text-gray-500">{item.time ? new Date(item.time).toLocaleString() : '—'}</p>
                                         </div>
                                     ))}

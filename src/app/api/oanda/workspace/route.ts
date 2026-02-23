@@ -53,12 +53,33 @@ export async function GET(request: NextRequest) {
             };
         });
 
+        const activity = transactions.slice(-30).reverse().map((tx: any) => {
+            const instrument = String(tx?.instrument || '');
+            const parts: string[] = [];
+
+            if (instrument) parts.push(instrument);
+            if (tx?.units != null) parts.push(`units=${String(tx.units)}`);
+            if (tx?.price != null) parts.push(`price=${String(tx.price)}`);
+            if (tx?.pl != null) parts.push(`pl=${String(tx.pl)}`);
+            if (tx?.reason) parts.push(String(tx.reason));
+            if (tx?.orderID) parts.push(`order#${String(tx.orderID)}`);
+            if (tx?.tradeID) parts.push(`trade#${String(tx.tradeID)}`);
+
+            return {
+                id: String(tx?.id || ''),
+                type: String(tx?.type || ''),
+                instrument: instrument || null,
+                time: tx?.time ? String(tx.time) : null,
+                details: parts.length ? parts.join(' · ') : null,
+            };
+        });
+
         return NextResponse.json({
             account,
             trades,
             orders,
             positions,
-            activity: transactions.slice(-30).reverse(),
+            activity,
         });
     } catch (error: any) {
         console.error('Oanda Workspace Route Error:', error?.response?.data || error?.message || error);
