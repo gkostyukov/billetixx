@@ -230,6 +230,20 @@ function badgeClassForOrderType(type: string): string {
     return 'border-gray-700 bg-gray-900/40 text-gray-300';
 }
 
+function orderTypeLabelRu(type: string): string {
+    const t = String(type || '').toUpperCase();
+    if (t.includes('TAKE_PROFIT')) return 'ТЕЙК-ПРОФИТ';
+    if (t.includes('STOP_LOSS')) return 'СТОП-ЛОСС';
+    if (t.includes('TRAILING')) return 'ТРЕЙЛИНГ-СТОП';
+    if (t === 'LIMIT' || t.includes('LIMIT')) return 'ЛИМИТ';
+    if (t === 'STOP' || (t.includes('STOP') && !t.includes('STOP_LOSS'))) return 'СТОП';
+    if (t.includes('MARKET')) return 'РЫНОК';
+    if (t.includes('ORDER_FILL')) return 'ИСПОЛНЕНО';
+    if (t.includes('ORDER_CANCEL')) return 'ОТМЕНЕНО';
+    if (t.includes('ORDER_CREATE')) return 'СОЗДАНО';
+    return type;
+}
+
 function getMidFromPricing(pricing: any): number | null {
     const ask = Number(pricing?.asks?.[0]?.price ?? NaN);
     const bid = Number(pricing?.bids?.[0]?.price ?? NaN);
@@ -1814,7 +1828,7 @@ export default function TradingDashboard() {
                                                 <p className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</p>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
-                                                        {item.type}
+                                                        {orderTypeLabelRu(item.type)}
                                                     </span>
                                                     {item.tradeId ? (
                                                         <p className="text-[10px] text-gray-500">trade #{item.tradeId}</p>
@@ -1878,7 +1892,7 @@ export default function TradingDashboard() {
                                         <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs">
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
-                                                    {item.type}
+                                                    {orderTypeLabelRu(item.type)}
                                                 </span>
                                                 <p className="text-gray-200">{item.instrument ? formatInstrumentLabel(item.instrument) : ''}</p>
                                             </div>

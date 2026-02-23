@@ -44,10 +44,9 @@ interface OpenPosition {
 interface ActivityItem {
     id: string;
     type: string;
-    instrument?: string;
-    units?: string;
-    pl?: string;
-    time?: string;
+    instrument?: string | null;
+    time?: string | null;
+    details?: string | null;
 }
 
 interface ScannerPairRow {
@@ -155,6 +154,28 @@ export default function DashboardPage() {
 
     const plColor = (pl: string) =>
         parseFloat(pl) >= 0 ? 'text-emerald-400' : 'text-red-400';
+
+    const badgeClassForOrderType = (type: string) => {
+        const t = String(type || '').toUpperCase();
+        if (t.includes('TAKE_PROFIT')) return 'border-emerald-700 bg-emerald-900/30 text-emerald-300';
+        if (t.includes('STOP_LOSS')) return 'border-red-700 bg-red-900/30 text-red-300';
+        if (t.includes('TRAILING')) return 'border-yellow-700 bg-yellow-900/20 text-yellow-300';
+        if (t.includes('LIMIT')) return 'border-blue-700 bg-blue-900/20 text-blue-300';
+        if (t.includes('STOP')) return 'border-orange-700 bg-orange-900/20 text-orange-300';
+        return 'border-gray-700 bg-gray-900/40 text-gray-300';
+    };
+
+    const orderTypeLabelRu = (type: string) => {
+        const t = String(type || '').toUpperCase();
+        if (t.includes('TAKE_PROFIT')) return 'ТЕЙК-ПРОФИТ';
+        if (t.includes('STOP_LOSS')) return 'СТОП-ЛОСС';
+        if (t.includes('TRAILING')) return 'ТРЕЙЛИНГ-СТОП';
+        if (t.includes('ORDER_FILL')) return 'ИСПОЛНЕНО';
+        if (t.includes('ORDER_CANCEL')) return 'ОТМЕНЕНО';
+        if (t.includes('LIMIT')) return 'ЛИМИТ';
+        if (t.includes('STOP') && !t.includes('STOP_LOSS')) return 'СТОП';
+        return type;
+    };
 
     const tabButtonClass = (tab: DashboardTab) =>
         `text-sm font-medium px-3 py-2 rounded-md transition-colors ${activeTab === tab
@@ -565,22 +586,23 @@ export default function DashboardPage() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
-                                    <th className="text-left px-6 py-3">Type</th>
-                                    <th className="text-left px-6 py-3">Instrument</th>
-                                    <th className="text-right px-6 py-3">Units</th>
-                                    <th className="text-right px-6 py-3">P&L</th>
-                                    <th className="text-left px-6 py-3">Time</th>
+                                    <th className="text-left px-6 py-3">Событие</th>
+                                    <th className="text-left px-6 py-3">Детали</th>
+                                    <th className="text-left px-6 py-3">Время</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {activity.map((item) => (
                                     <tr key={item.id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
-                                        <td className="px-6 py-4 text-gray-300">{item.type}</td>
-                                        <td className="px-6 py-4 font-mono font-semibold text-white">{item.instrument ? item.instrument.replace('_', '/') : '—'}</td>
-                                        <td className="px-6 py-4 text-right font-mono text-gray-300">{item.units || '—'}</td>
-                                        <td className={`px-6 py-4 text-right font-mono font-semibold ${plColor(item.pl || '0')}`}>
-                                            {item.pl ? `${parseFloat(item.pl) >= 0 ? '+' : ''}${parseFloat(item.pl).toFixed(2)}` : '—'}
+                                        <td className="px-6 py-4 text-gray-300">
+                                            <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
+                                                {orderTypeLabelRu(item.type)}
+                                            </span>
+                                            {item.instrument ? (
+                                                <span className="ml-2 font-mono font-semibold text-white">{item.instrument.replace('_', '/')}</span>
+                                            ) : null}
                                         </td>
+                                        <td className="px-6 py-4 text-gray-400">{item.details || '—'}</td>
                                         <td className="px-6 py-4 text-gray-500 text-xs">{item.time ? new Date(item.time).toLocaleString() : '—'}</td>
                                     </tr>
                                 ))}
