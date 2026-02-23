@@ -1,5 +1,5 @@
 {
-  "activeStrategyId": "flat_range_v1",
+  "activeStrategyId": "h1_trend_m15_pullback",
   "activeProfile": "soft",
   "profiles": {
     "strict": {

@@ -156,7 +156,11 @@ export function calculateScore(
     srScore * weights.distanceFromSRWeight;
 
   const rangeFadeBoost = rangeFadeSignalQuality(intent);
-  const boostedWeighted = Math.min(1, weighted + rangeFadeBoost * 0.25);
+
+  // Penalty flags (do not hard-reject): if TP is too close to the nearest S/R, down-rank the candidate.
+  const tpNearSrPenalty = (intent.tags.includes('TP_NEAR_RESISTANCE') || intent.tags.includes('TP_NEAR_SUPPORT')) ? 0.18 : 0;
+
+  const boostedWeighted = Math.min(1, weighted + rangeFadeBoost * 0.25 - tpNearSrPenalty);
 
   return {
     passed: true,

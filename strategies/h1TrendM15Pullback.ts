@@ -20,6 +20,20 @@ function countLastDirectionCandles(candles: Candle[], direction: 'bearish' | 'bu
   ).length;
 }
 
+function lastCandleDirection(candles: Candle[]): 'bearish' | 'bullish' | 'flat' {
+  const last = candles[candles.length - 1];
+  if (!last) return 'flat';
+  if (last.close > last.open) return 'bullish';
+  if (last.close < last.open) return 'bearish';
+  return 'flat';
+}
+
+function minStopDistance(pair: string, atrM15: number, minSlAtr: number): number {
+  // ATR-based minimum is often too small on quiet sessions; enforce a pip floor.
+  const pipFloor = pair.includes('JPY') ? 0.01 * 6 : 0.0001 * 6; // 6 pips
+  return Math.max(atrM15 * minSlAtr, pipFloor);
+}
+
 function nearestBelow(levels: number[], price: number): number | null {
   const filtered = levels.filter((level) => level < price).sort((a, b) => b - a);
   return filtered[0] ?? null;
@@ -46,6 +60,7 @@ export const h1TrendM15PullbackStrategy: StrategyPlugin = {
     },
   },
   evaluate: (marketContext, params) => {
+    const pair = marketContext.pair;
     const rrTarget = Number(params.rrTarget ?? 1.6);
     const pullbackAtrRatio = Number(params.pullbackAtrRatio ?? 0.3);
     const zoneAtrTolerance = Number(params.zoneAtrTolerance ?? 0.35);
@@ -79,8 +94,10 @@ export const h1TrendM15PullbackStrategy: StrategyPlugin = {
       const support = nearestBelow(swingsM15.lows, mid);
       const nearSupport = support != null ? (mid - support) <= atrM15 * zoneAtrTolerance : false;
 
-      if (momentumM15 === 'STRONG_DOWN') {
-        return noTrade('M15 momentum STRONG_DOWN против BUY.', ['MOMENTUM_CONFLICT']);
+      // NOTE: During a pullback in a bullish trend, momentum can legitimately be STRONG_DOWN.
+      // Instead of banning it, wait for the pullback to start stabilizing (a bullish/flat last candle).
+      if (momentumM15 === 'STRONG_DOWN' && lastCandleDirection(m15Candles) === 'bearish') {
+        return noTrade('M15 momentum STRONG_DOWN: ждём стабилизацию pullback перед BUY.', ['MOMENTUM_CONFLICT']);
       }
       if (!hasPullback) {
         return noTrade('Нет подтвержденного pullback для BUY.', ['PULLBACK_MISSING']);
@@ -91,15 +108,18 @@ export const h1TrendM15PullbackStrategy: StrategyPlugin = {
 
       const entry = lastPriceAsk;
       const slRaw = (support ?? recentLow) - atrM15 * slAtrBuffer;
-      const minSlDistance = atrM15 * minSlAtr;
+      const minSlDistance = minStopDistance(pair, atrM15, minSlAtr);
       const stopLoss = Math.min(slRaw, entry - minSlDistance);
       const riskDistance = entry - stopLoss;
       const takeProfit = entry + riskDistance * rrTarget;
       const nearestResistance = nearestAbove(swingsM15.highs, entry);
 
-      if (nearestResistance != null && takeProfit >= nearestResistance - atrM15 * 0.05) {
-        return noTrade('Для RR>=1.5 TP упирается в ближайшее сопротивление.', ['RR_BLOCKED_BY_RESISTANCE']);
-      }
+      // A) Do NOT hard-reject when TP is near resistance.
+      // Instead, flag it so scoring/UX can down-rank it. This helps dry-run find candidates.
+      const pip = pair.includes('JPY') ? 0.01 : 0.0001;
+      const resistanceBuffer = Math.max(atrM15 * 0.12, pip * 4); // ~4 pips floor
+      const tpNearResistance = nearestResistance != null && takeProfit >= nearestResistance - resistanceBuffer;
+      const distanceToResistancePips = nearestResistance != null ? (nearestResistance - entry) / pip : null;
 
       return {
         decision: 'BUY',
@@ -107,8 +127,13 @@ export const h1TrendM15PullbackStrategy: StrategyPlugin = {
         entryPrice: Number(entry.toFixed(5)),
         stopLoss: Number(stopLoss.toFixed(5)),
         takeProfit: Number(takeProfit.toFixed(5)),
-        rationale: `H1=BULL (MA slope). Pullback подтвержден: bearishCandles=${bearishPullbackCandles}, retrace=${retrace.toFixed(5)}, support=${support ?? recentLow}. RR target=${rrTarget}.`,
-        tags: ['H1_BULL', 'M15_PULLBACK', 'CONSERVATIVE'],
+        rationale: `H1=BULL (MA slope). Pullback подтвержден: bearishCandles=${bearishPullbackCandles}, retrace=${retrace.toFixed(5)}, support=${support ?? recentLow}. RR target=${rrTarget}.` + (tpNearResistance ? ` (WARN: TP near resistance ${nearestResistance})` : ''),
+        tags: ['H1_BULL', 'M15_PULLBACK', 'CONSERVATIVE', ...(tpNearResistance ? ['TP_NEAR_RESISTANCE'] : [])],
+        metrics: {
+          tp_near_resistance: tpNearResistance,
+          tp_resistance_buffer_pips: Number((resistanceBuffer / pip).toFixed(2)),
+          distance_to_resistance_pips: distanceToResistancePips == null ? null : Number(distanceToResistancePips.toFixed(2)),
+        },
       };
     }
 
@@ -117,8 +142,9 @@ export const h1TrendM15PullbackStrategy: StrategyPlugin = {
     const resistance = nearestAbove(swingsM15.highs, mid);
     const nearResistance = resistance != null ? (resistance - mid) <= atrM15 * zoneAtrTolerance : false;
 
-    if (momentumM15 === 'STRONG_UP') {
-      return noTrade('M15 momentum STRONG_UP против SELL.', ['MOMENTUM_CONFLICT']);
+    // Symmetric handling for bearish trend: pullbacks can show STRONG_UP.
+    if (momentumM15 === 'STRONG_UP' && lastCandleDirection(m15Candles) === 'bullish') {
+      return noTrade('M15 momentum STRONG_UP: ждём стабилизацию pullback перед SELL.', ['MOMENTUM_CONFLICT']);
     }
     if (!hasPullback) {
       return noTrade('Нет подтвержденного pullback для SELL.', ['PULLBACK_MISSING']);
@@ -129,15 +155,16 @@ export const h1TrendM15PullbackStrategy: StrategyPlugin = {
 
     const entry = lastPriceBid;
     const slRaw = (resistance ?? recentHigh) + atrM15 * slAtrBuffer;
-    const minSlDistance = atrM15 * minSlAtr;
+    const minSlDistance = minStopDistance(pair, atrM15, minSlAtr);
     const stopLoss = Math.max(slRaw, entry + minSlDistance);
     const riskDistance = stopLoss - entry;
     const takeProfit = entry - riskDistance * rrTarget;
     const nearestSupport = nearestBelow(swingsM15.lows, entry);
 
-    if (nearestSupport != null && takeProfit <= nearestSupport + atrM15 * 0.05) {
-      return noTrade('Для RR>=1.5 TP упирается в ближайшую поддержку.', ['RR_BLOCKED_BY_SUPPORT']);
-    }
+    const pip = pair.includes('JPY') ? 0.01 : 0.0001;
+    const supportBuffer = Math.max(atrM15 * 0.12, pip * 4); // ~4 pips floor
+    const tpNearSupport = nearestSupport != null && takeProfit <= nearestSupport + supportBuffer;
+    const distanceToSupportPips = nearestSupport != null ? (entry - nearestSupport) / pip : null;
 
     return {
       decision: 'SELL',
@@ -145,8 +172,13 @@ export const h1TrendM15PullbackStrategy: StrategyPlugin = {
       entryPrice: Number(entry.toFixed(5)),
       stopLoss: Number(stopLoss.toFixed(5)),
       takeProfit: Number(takeProfit.toFixed(5)),
-      rationale: `H1=BEAR (MA slope). Pullback подтвержден: bullishCandles=${bullishPullbackCandles}, retrace=${retrace.toFixed(5)}, resistance=${resistance ?? recentHigh}. RR target=${rrTarget}.`,
-      tags: ['H1_BEAR', 'M15_PULLBACK', 'CONSERVATIVE'],
+      rationale: `H1=BEAR (MA slope). Pullback подтвержден: bullishCandles=${bullishPullbackCandles}, retrace=${retrace.toFixed(5)}, resistance=${resistance ?? recentHigh}. RR target=${rrTarget}.` + (tpNearSupport ? ` (WARN: TP near support ${nearestSupport})` : ''),
+      tags: ['H1_BEAR', 'M15_PULLBACK', 'CONSERVATIVE', ...(tpNearSupport ? ['TP_NEAR_SUPPORT'] : [])],
+      metrics: {
+        tp_near_support: tpNearSupport,
+        tp_support_buffer_pips: Number((supportBuffer / pip).toFixed(2)),
+        distance_to_support_pips: distanceToSupportPips == null ? null : Number(distanceToSupportPips.toFixed(2)),
+      },
     };
   },
 };
