@@ -43,9 +43,13 @@ export async function GET(request: NextRequest) {
         const orders = rawOrders.map((order: any) => {
             const tradeId = String(order?.tradeID || order?.tradeId || order?.relatedTradeID || order?.relatedTradeId || '');
             const instrument = String(order?.instrument || tradeInstrumentById.get(tradeId) || '');
+            const price = order?.price ?? order?.triggerPrice ?? order?.stopLossOrder?.price ?? order?.takeProfitOrder?.price;
+
             return {
                 ...order,
                 instrument,
+                tradeId: tradeId || null,
+                displayPrice: price != null ? String(price) : null,
             };
         });
 

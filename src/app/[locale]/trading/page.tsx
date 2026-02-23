@@ -38,6 +38,8 @@ interface TerminalOrder {
     instrument: string;
     type: string;
     units?: string;
+    displayPrice?: string | null;
+    tradeId?: string | null;
 }
 
 interface TerminalPosition {
@@ -184,6 +186,11 @@ function formatCountdown(totalSeconds: number): string {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatInstrumentLabel(value: unknown): string {
+    if (typeof value !== 'string' || value.length === 0) return 'UNKNOWN';
+    return value.replace('_', '/');
 }
 
 function getMidFromPricing(pricing: any): number | null {
@@ -635,7 +642,7 @@ export default function TradingDashboard() {
     }, [fetchScannerStatus]);
 
     const handleCloseTrade = async (tradeId: string, instrument: string) => {
-        const confirmed = window.confirm(t('confirmCloseTrade', { instrument: instrument.replace('_', '/') }));
+        const confirmed = window.confirm(t('confirmCloseTrade', { instrument: formatInstrumentLabel(instrument) }));
         if (!confirmed) return;
 
         const key = `trade:${tradeId}`;
@@ -657,7 +664,7 @@ export default function TradingDashboard() {
     };
 
     const handleCancelOrder = async (orderId: string, instrument: string) => {
-        const confirmed = window.confirm(t('confirmCancelOrder', { instrument: instrument.replace('_', '/') }));
+        const confirmed = window.confirm(t('confirmCancelOrder', { instrument: formatInstrumentLabel(instrument) }));
         if (!confirmed) return;
 
         const key = `order:${orderId}`;
@@ -1024,7 +1031,9 @@ export default function TradingDashboard() {
 
     const scannerRows = useMemo(() => {
         if (!scannerStatus?.scannedPairs?.length) return [];
-        return [...scannerStatus.scannedPairs].sort((a, b) => {
+        return scannerStatus.scannedPairs
+            .filter((row): row is ScannerPairRow => Boolean(row && typeof row.pair === 'string' && row.pair.length > 0))
+            .sort((a, b) => {
             const scoreA = a.score ?? -1;
             const scoreB = b.score ?? -1;
             return scoreB - scoreA;
@@ -1368,9 +1377,9 @@ export default function TradingDashboard() {
                                 <div className="mt-2 max-h-44 overflow-y-auto space-y-1 pr-1">
                                     {!filteredScannerRows.length ? (
                                         <p className="text-[10px] text-gray-500">{t('scannerNoResults')}</p>
-                                    ) : filteredScannerRows.map((row) => (
+                                    ) : filteredScannerRows.map((row, index) => (
                                         <div
-                                            key={row.pair}
+                                            key={`${row.pair}-${index}`}
                                             className={`rounded border p-2 ${selectedScannerPair === row.pair
                                                 ? 'border-blue-800 bg-blue-950/20'
                                                 : 'border-gray-800 bg-gray-950/50'
@@ -1378,7 +1387,7 @@ export default function TradingDashboard() {
                                         >
                                             <div className="flex items-center justify-between text-[11px]">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-mono text-gray-200">{row.pair.replace('_', '/')}</span>
+                                                    <span className="font-mono text-gray-200">{formatInstrumentLabel(row.pair)}</span>
                                                     {bestScannerPair === row.pair && (
                                                         <span className="text-[10px] px-1.5 py-0.5 rounded border border-emerald-700 bg-emerald-900/40 text-emerald-300">
                                                             {t('scannerBest')}
@@ -1564,7 +1573,7 @@ export default function TradingDashboard() {
                                     {trades.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoOpenTrades')}</p> : trades.map((item) => (
                                         <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs flex justify-between">
                                             <div>
-                                                <p className="text-white font-mono">{item.instrument.replace('_', '/')}</p>
+                                                <p className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</p>
                                                 <p className={parseFloat(item.unrealizedPL || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'}>{parseFloat(item.unrealizedPL || '0').toFixed(2)}</p>
                                             </div>
                                             <button
@@ -1584,8 +1593,11 @@ export default function TradingDashboard() {
                                     {orders.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoPendingOrders')}</p> : orders.map((item) => (
                                         <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs flex justify-between">
                                             <div>
-                                                <p className="text-white font-mono">{item.instrument.replace('_', '/')}</p>
-                                                <p className="text-gray-400">{item.type}</p>
+                                                <p className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</p>
+                                                <p className="text-gray-400">{item.type}{item.displayPrice ? ` @ ${item.displayPrice}` : ''}</p>
+                                                {item.tradeId ? (
+                                                    <p className="text-[10px] text-gray-500">trade #{item.tradeId}</p>
+                                                ) : null}
                                             </div>
                                             <button
                                                 onClick={() => handleCancelOrder(item.id, item.instrument)}
@@ -1603,7 +1615,7 @@ export default function TradingDashboard() {
                                 <div>
                                     {positions.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoOpenPositions')}</p> : positions.map((item) => (
                                         <div key={item.instrument} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs flex justify-between">
-                                            <span className="text-white font-mono">{item.instrument.replace('_', '/')}</span>
+                                            <span className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</span>
                                             <span className={parseFloat(item.unrealizedPL || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'}>{parseFloat(item.unrealizedPL || '0').toFixed(2)}</span>
                                         </div>
                                     ))}
@@ -1614,7 +1626,7 @@ export default function TradingDashboard() {
                                 <div>
                                     {activity.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoActivity')}</p> : activity.map((item) => (
                                         <div key={item.id} className="px-3 py-2 border-b border-gray-800/70 last:border-b-0 text-xs">
-                                            <p className="text-gray-200">{item.type}{item.instrument ? ` · ${item.instrument.replace('_', '/')}` : ''}</p>
+                                            <p className="text-gray-200">{item.type}{item.instrument ? ` · ${formatInstrumentLabel(item.instrument)}` : ''}</p>
                                             <p className="text-gray-500">{item.time ? new Date(item.time).toLocaleString() : '—'}</p>
                                         </div>
                                     ))}
