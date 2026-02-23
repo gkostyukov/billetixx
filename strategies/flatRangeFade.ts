@@ -94,7 +94,7 @@ export const flatRangeFadeStrategy: StrategyPlugin = {
       minRangePips: { type: 'number', description: 'Minimum acceptable range size in pips', default: 8 },
       maxRangePips: { type: 'number', description: 'Maximum acceptable range size in pips', default: 35 },
       entryBandPips: { type: 'number', description: 'Distance to boundary for entry setup', default: 3 },
-      maxSpreadPips: { type: 'number', description: 'Maximum allowed spread', default: 2.2 },
+      maxSpreadPips: { type: 'number', description: 'Maximum allowed spread', default: 4.0 }
       slBufferPips: { type: 'number', description: 'Stop-loss buffer beyond range boundary', default: 1.7 },
       tpMode: { type: 'string', description: 'FIXED_TP_PIPS or MIDLINE', default: 'MIDLINE' },
       tpPips: { type: 'number', description: 'Fixed TP distance (used in FIXED_TP_PIPS mode)', default: 10 },
@@ -119,7 +119,7 @@ export const flatRangeFadeStrategy: StrategyPlugin = {
     const minRangePips = Number(params.minRangePips ?? 8);
     const maxRangePips = Number(params.maxRangePips ?? 35);
     const entryBandPips = Number(params.entryBandPips ?? 3);
-    const maxSpreadPips = Number(params.maxSpreadPips ?? 2.2);
+    const maxSpreadPips = Number(params.maxSpreadPips ?? 4.0);
     const slBufferPips = Number(params.slBufferPips ?? 1.7);
     const tpMode = String(params.tpMode ?? 'MIDLINE').toUpperCase() as TpMode;
     const tpPips = Number(params.tpPips ?? 10);

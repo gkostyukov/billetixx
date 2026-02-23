@@ -239,18 +239,8 @@ function extractDetailsNumber(details: string | null | undefined, key: string): 
     return Number.isFinite(n) ? n : null;
 }
 
-function orderTypeLabelRu(type: string): string {
-    const t = String(type || '').toUpperCase();
-    if (t.includes('TAKE_PROFIT')) return 'ТЕЙК-ПРОФИТ';
-    if (t.includes('STOP_LOSS')) return 'СТОП-ЛОСС';
-    if (t.includes('TRAILING')) return 'ТРЕЙЛИНГ-СТОП';
-    if (t === 'LIMIT' || t.includes('LIMIT')) return 'ЛИМИТ';
-    if (t === 'STOP' || (t.includes('STOP') && !t.includes('STOP_LOSS'))) return 'СТОП';
-    if (t.includes('MARKET')) return 'РЫНОК';
-    if (t.includes('ORDER_FILL')) return 'ИСПОЛНЕНО';
-    if (t.includes('ORDER_CANCEL')) return 'ОТМЕНЕНО';
-    if (t.includes('ORDER_CREATE')) return 'СОЗДАНО';
-    return type;
+function orderTypeLabel(type: string): string {
+    return String(type || '').toUpperCase();
 }
 
 function getMidFromPricing(pricing: any): number | null {
@@ -1842,7 +1832,7 @@ export default function TradingDashboard() {
                                                 <p className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</p>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
-                                                        {orderTypeLabelRu(item.type)}
+                                                        {String(item.type || '').toUpperCase()}
                                                     </span>
                                                     {item.tradeId ? (
                                                         <p className="text-[10px] text-gray-500">trade #{item.tradeId}</p>
@@ -1913,7 +1903,7 @@ export default function TradingDashboard() {
                                                 <div className="flex items-center justify-between gap-3">
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
-                                                            {orderTypeLabelRu(item.type)}
+                                                            {String(item.type || '').toUpperCase()}
                                                         </span>
                                                         {side !== 'FLAT' && (
                                                             <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForSide(side)}`}>

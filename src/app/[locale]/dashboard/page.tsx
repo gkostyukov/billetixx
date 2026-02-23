@@ -165,17 +165,7 @@ export default function DashboardPage() {
         return 'border-gray-700 bg-gray-900/40 text-gray-300';
     };
 
-    const orderTypeLabelRu = (type: string) => {
-        const t = String(type || '').toUpperCase();
-        if (t.includes('TAKE_PROFIT')) return 'ТЕЙК-ПРОФИТ';
-        if (t.includes('STOP_LOSS')) return 'СТОП-ЛОСС';
-        if (t.includes('TRAILING')) return 'ТРЕЙЛИНГ-СТОП';
-        if (t.includes('ORDER_FILL')) return 'ИСПОЛНЕНО';
-        if (t.includes('ORDER_CANCEL')) return 'ОТМЕНЕНО';
-        if (t.includes('LIMIT')) return 'ЛИМИТ';
-        if (t.includes('STOP') && !t.includes('STOP_LOSS')) return 'СТОП';
-        return type;
-    };
+    const orderTypeLabel = (type: string) => String(type || '').toUpperCase();
 
     const tabButtonClass = (tab: DashboardTab) =>
         `text-sm font-medium px-3 py-2 rounded-md transition-colors ${activeTab === tab
@@ -196,7 +186,7 @@ export default function DashboardPage() {
     });
 
     const handleCloseTrade = async (tradeId: string, instrument: string) => {
-        const confirmed = window.confirm(`Close trade for ${instrument.replace('_', '/')}?`);
+        const confirmed = window.confirm(t('confirmCloseTrade', { instrument: instrument.replace('_', '/') }));
         if (!confirmed) return;
 
         const key = `trade:${tradeId}`;
@@ -219,7 +209,7 @@ export default function DashboardPage() {
     };
 
     const handleCancelOrder = async (orderId: string, instrument: string) => {
-        const confirmed = window.confirm(`Cancel pending order for ${instrument.replace('_', '/')}?`);
+        const confirmed = window.confirm(t('confirmCancelOrder', { instrument: instrument.replace('_', '/') }));
         if (!confirmed) return;
 
         const key = `order:${orderId}`;
@@ -421,16 +411,16 @@ export default function DashboardPage() {
                 <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
                         <button onClick={() => setActiveTab('trades')} className={tabButtonClass('trades')}>
-                            Trades ({trades.length})
+                            {t('tabTrades')} ({trades.length})
                         </button>
                         <button onClick={() => setActiveTab('orders')} className={tabButtonClass('orders')}>
-                            Orders ({orders.length})
+                            {t('tabOrders')} ({orders.length})
                         </button>
                         <button onClick={() => setActiveTab('positions')} className={tabButtonClass('positions')}>
-                            Positions ({positions.length})
+                            {t('tabPositions')} ({positions.length})
                         </button>
                         <button onClick={() => setActiveTab('activity')} className={tabButtonClass('activity')}>
-                            Activity ({activity.length})
+                            {t('tabActivity')} ({activity.length})
                         </button>
                     </div>
                 </div>
@@ -444,7 +434,7 @@ export default function DashboardPage() {
                 {activeTab === 'trades' && trades.length === 0 ? (
                     <div className="py-16 text-center text-gray-500">
                         <div className="text-4xl mb-3">📭</div>
-                        <p className="text-sm">No open trades</p>
+                        <p className="text-sm">{t('noTrades')}</p>
                     </div>
                 ) : activeTab === 'trades' ? (
                     <div className="overflow-x-auto">
@@ -547,7 +537,7 @@ export default function DashboardPage() {
                 ) : activeTab === 'positions' && positions.length === 0 ? (
                     <div className="py-16 text-center text-gray-500">
                         <div className="text-4xl mb-3">📬</div>
-                        <p className="text-sm">No open positions</p>
+                        <p className="text-sm">{t('noPositions')}</p>
                     </div>
                 ) : activeTab === 'positions' ? (
                     <div className="overflow-x-auto">
@@ -579,16 +569,16 @@ export default function DashboardPage() {
                 ) : activity.length === 0 ? (
                     <div className="py-16 text-center text-gray-500">
                         <div className="text-4xl mb-3">🕘</div>
-                        <p className="text-sm">No recent activity</p>
+                        <p className="text-sm">{t('noActivity')}</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
-                                    <th className="text-left px-6 py-3">Событие</th>
-                                    <th className="text-left px-6 py-3">Детали</th>
-                                    <th className="text-left px-6 py-3">Время</th>
+                                    <th className="text-left px-6 py-3">{t('activityEvent')}</th>
+                                    <th className="text-left px-6 py-3">{t('activityDetails')}</th>
+                                    <th className="text-left px-6 py-3">{t('activityTime')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -596,7 +586,7 @@ export default function DashboardPage() {
                                     <tr key={item.id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
                                         <td className="px-6 py-4 text-gray-300">
                                             <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border ${badgeClassForOrderType(item.type)}`}>
-                                                {orderTypeLabelRu(item.type)}
+                                                {orderTypeLabel(item.type)}
                                             </span>
                                             {item.instrument ? (
                                                 <span className="ml-2 font-mono font-semibold text-white">{item.instrument.replace('_', '/')}</span>

@@ -51,6 +51,7 @@ function spreadQuality(spreadPips: number, slPips: number): number {
   if (ratio <= 0.1) return 1.0;
   if (ratio <= 0.2) return 0.7;
   if (ratio <= 0.3) return 0.4;
+  if (ratio <= 0.6) return 0.2;
   return -1;
 }
 
@@ -136,7 +137,7 @@ export function calculateScore(
 
   const spreadScore = spreadQuality(context.spread_pips, slPips);
   if (spreadScore < 0) {
-    rejectionReasons.push('Spread exceeds 30% of stop-loss distance (scoring filter).');
+    rejectionReasons.push('Spread exceeds 60% of stop-loss distance (scoring filter).');
   }
 
   if (rejectionReasons.length) {
