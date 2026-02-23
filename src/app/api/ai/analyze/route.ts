@@ -82,7 +82,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing instrument' }, { status: 400 });
         }
 
-        const systemPrompt = `Ты профессиональный AI-ассистент трейдера.
+        const acceptLanguage = String(request.headers.get('accept-language') || '').toLowerCase();
+        const wantsRussian = acceptLanguage.includes('ru');
+
+        const systemPrompt = wantsRussian
+            ? `Ты профессиональный AI-ассистент трейдера.
 Проанализируй текущую рыночную ситуацию для ${instrument} на таймфрейме ${timeframe}.
 Данные свечей и текущие цены предоставлены в формате JSON.
 На основе этих данных:
@@ -90,17 +94,32 @@ export async function POST(request: NextRequest) {
 2. Найди уровни поддержки и сопротивления.
 3. Предложи сценарий: Bullish (Покупка), Bearish (Продажа) или Flat (Ожидание).
 4. Укажи обоснование, стоп-лосс (SL) и тейк-профит (TP) при необходимости.
-Пиши ответ на русском языке. Ответ должен быть кратким и четким.`;
+Пиши ответ на русском языке. Ответ должен быть кратким и четким.`
+            : `You are a professional trader assistant.
+Analyze the current market situation for ${instrument} on timeframe ${timeframe}.
+Candles and current prices are provided as JSON.
+Based on this data:
+1) Assess the current trend.
+2) Identify support and resistance.
+3) Provide a scenario: Bullish (Buy), Bearish (Sell) or Flat (Wait).
+4) Provide reasoning, Stop Loss (SL) and Take Profit (TP) if appropriate.
+Write the answer in English. Keep it concise and clear.`;
 
         if (!Array.isArray(chartData) || chartData.length === 0) {
             return NextResponse.json({ error: 'Missing candle data for analysis' }, { status: 400 });
         }
 
-        const userPrompt = `Текущие данные рынка:
+        const userPrompt = wantsRussian
+            ? `Текущие данные рынка:
 Pricing: ${JSON.stringify(pricing)}
 Candles (последние 10): ${JSON.stringify(chartData.slice(-10))}
 
-Сделай анализ и дай рекомендацию.`;
+Сделай анализ и дай рекомендацию.`
+            : `Current market data:
+Pricing: ${JSON.stringify(pricing)}
+Candles (last 10): ${JSON.stringify(chartData.slice(-10))}
+
+Provide your analysis and recommendation.`;
 
         const modelChain = buildModelChain();
         let completion: OpenAI.Chat.Completions.ChatCompletion | null = null;
