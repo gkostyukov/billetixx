@@ -277,6 +277,11 @@ export default function TradingDashboard() {
     const [positions, setPositions] = useState<TerminalPosition[]>([]);
     const [activity, setActivity] = useState<TerminalActivity[]>([]);
     const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
+    const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
+    const [editingTradeInstrument, setEditingTradeInstrument] = useState<string | null>(null);
+    const [riskEditStopLoss, setRiskEditStopLoss] = useState<string>('');
+    const [riskEditTakeProfit, setRiskEditTakeProfit] = useState<string>('');
+    const [riskEditTrailing, setRiskEditTrailing] = useState<string>('');
     const [newsImpact, setNewsImpact] = useState<NewsImpact | null>(null);
     const [newsLoading, setNewsLoading] = useState(false);
     const [placingOrder, setPlacingOrder] = useState(false);
@@ -706,6 +711,79 @@ export default function TradingDashboard() {
         } finally {
             setActionLoadingKey(null);
         }
+    };
+
+    const beginEditRisk = (tradeId: string, instrument: string) => {
+        const tp = orders.find((order) => order.tradeId === tradeId && String(order.type || '').includes('TAKE_PROFIT'))?.displayPrice;
+        const sl = orders.find((order) => order.tradeId === tradeId && String(order.type || '').includes('STOP_LOSS'))?.displayPrice;
+        const ts = orders.find((order) => order.tradeId === tradeId && String(order.type || '').includes('TRAILING'))?.displayPrice;
+
+        setEditingTradeId(tradeId);
+        setEditingTradeInstrument(instrument);
+        setRiskEditStopLoss(sl ? String(sl) : '');
+        setRiskEditTakeProfit(tp ? String(tp) : '');
+        setRiskEditTrailing(ts ? String(ts) : '');
+        setOrderMessage(null);
+    };
+
+    const handleSaveRisk = async () => {
+        if (!editingTradeId || !editingTradeInstrument) return;
+
+        const key = `risk:${editingTradeId}`;
+        setActionLoadingKey(key);
+        setOrderMessage(null);
+
+        const parseNullable = (value: string) => {
+            const trimmed = String(value || '').trim();
+            if (!trimmed) return null;
+            const num = Number(trimmed);
+            return Number.isFinite(num) && num > 0 ? num : NaN;
+        };
+
+        const stopLoss = parseNullable(riskEditStopLoss);
+        const takeProfit = parseNullable(riskEditTakeProfit);
+        const trailingStopDistance = parseNullable(riskEditTrailing);
+
+        if ([stopLoss, takeProfit, trailingStopDistance].some((v) => typeof v === 'number' && Number.isNaN(v))) {
+            setOrderMessage('Invalid SL/TP/Trailing value. Use a positive number or leave blank to remove.');
+            setActionLoadingKey(null);
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/oanda/trades/risk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tradeId: editingTradeId,
+                    stopLoss,
+                    takeProfit,
+                    trailingStopDistance,
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || t('orderErrorPlace'));
+
+            setEditingTradeId(null);
+            setEditingTradeInstrument(null);
+            setRiskEditStopLoss('');
+            setRiskEditTakeProfit('');
+            setRiskEditTrailing('');
+            await fetchWorkspace();
+        } catch (err: any) {
+            setOrderMessage(err?.message || t('orderErrorPlace'));
+        } finally {
+            setActionLoadingKey(null);
+        }
+    };
+
+    const handleCancelRiskEdit = () => {
+        setEditingTradeId(null);
+        setEditingTradeInstrument(null);
+        setRiskEditStopLoss('');
+        setRiskEditTakeProfit('');
+        setRiskEditTrailing('');
     };
 
     const handlePlaceOrder = async () => {
@@ -1591,6 +1669,59 @@ export default function TradingDashboard() {
                         </div>
 
                         <div className="max-h-56 overflow-y-auto border border-gray-800 rounded-lg">
+                            {editingTradeId && (
+                                <div className="p-3 border-b border-gray-800 bg-gray-950/60">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div>
+                                            <p className="text-xs text-gray-200 font-semibold">Edit risk orders · {formatInstrumentLabel(editingTradeInstrument)}</p>
+                                            <p className="text-[10px] text-gray-500">trade #{editingTradeId} · Leave empty to remove</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={handleCancelRiskEdit}
+                                                className="text-[11px] px-2 py-1 rounded border border-gray-700 text-gray-300 hover:bg-gray-800"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={handleSaveRisk}
+                                                disabled={actionLoadingKey === `risk:${editingTradeId}`}
+                                                className="text-[11px] px-2 py-1 rounded border border-emerald-700 text-emerald-200 hover:bg-emerald-900/30 disabled:opacity-50"
+                                            >
+                                                {actionLoadingKey === `risk:${editingTradeId}` ? '...' : 'Save'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-wide">SL price</label>
+                                            <input
+                                                value={riskEditStopLoss}
+                                                onChange={(e) => setRiskEditStopLoss(e.target.value)}
+                                                className="mt-1 w-full bg-gray-900 border border-gray-700 text-white rounded px-2 py-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-wide">TP price</label>
+                                            <input
+                                                value={riskEditTakeProfit}
+                                                onChange={(e) => setRiskEditTakeProfit(e.target.value)}
+                                                className="mt-1 w-full bg-gray-900 border border-gray-700 text-white rounded px-2 py-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-wide">Trailing distance</label>
+                                            <input
+                                                value={riskEditTrailing}
+                                                onChange={(e) => setRiskEditTrailing(e.target.value)}
+                                                className="mt-1 w-full bg-gray-900 border border-gray-700 text-white rounded px-2 py-1"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {workspaceTab === 'trades' && (
                                 <div>
                                     {trades.length === 0 ? <p className="text-xs text-gray-500 p-3">{t('workspaceNoOpenTrades')}</p> : trades.map((item) => (
@@ -1599,13 +1730,22 @@ export default function TradingDashboard() {
                                                 <p className="text-white font-mono">{formatInstrumentLabel(item.instrument)}</p>
                                                 <p className={parseFloat(item.unrealizedPL || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'}>{parseFloat(item.unrealizedPL || '0').toFixed(2)}</p>
                                             </div>
-                                            <button
-                                                onClick={() => handleCloseTrade(item.id, item.instrument)}
-                                                disabled={actionLoadingKey === `trade:${item.id}`}
-                                                className="text-[11px] px-2 py-1 rounded border border-red-800 text-red-300 hover:bg-red-900/40 disabled:opacity-50"
-                                            >
-                                                {actionLoadingKey === `trade:${item.id}` ? '...' : t('workspaceClose')}
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => beginEditRisk(item.id, item.instrument)}
+                                                    disabled={actionLoadingKey === `risk:${item.id}` || actionLoadingKey === `trade:${item.id}`}
+                                                    className="text-[11px] px-2 py-1 rounded border border-blue-800 text-blue-300 hover:bg-blue-900/30 disabled:opacity-50"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleCloseTrade(item.id, item.instrument)}
+                                                    disabled={actionLoadingKey === `trade:${item.id}` || actionLoadingKey === `risk:${item.id}`}
+                                                    className="text-[11px] px-2 py-1 rounded border border-red-800 text-red-300 hover:bg-red-900/40 disabled:opacity-50"
+                                                >
+                                                    {actionLoadingKey === `trade:${item.id}` ? '...' : t('workspaceClose')}
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
