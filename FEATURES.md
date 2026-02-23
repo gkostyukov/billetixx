@@ -1,5 +1,13 @@
 # Billetixx Features
 
+## 🆕 Latest changes (2026-02-23)
+- ✅ Added `breakout_v2` filtered breakout strategy (range validity, ATR/impulse filters, H1 trend gate)
+- ✅ Added retest/close entry modes and opposite-boundary/impulse-extreme stop modes for breakout_v2
+- ✅ Added false-breakout handling with optional reversal mode
+- ✅ Added anti-duplicate dry-run/scan suppression per closed M15 candle (`DUPLICATE_M15_SIGNAL`)
+- ✅ Extended scanner diagnostics (`recommendedStrategyId`, `appliedStrategyId`, rejection code, metrics)
+- ✅ Added synthetic strategy test (`npm run test:breakout-v2`) and technical notes in `BREAKOUT_V2.md`
+
 ## 🔐 Authentication & Security
 - ✅ Secure authentication with NextAuth.js v5
 - ✅ JWT-based session management
