@@ -40,9 +40,10 @@ model User {
   // OpenAI API key (per-user, optional — falls back to server .env)
   openaiApiKey           String?
 
-  tradeSignals  TradeSignal[]
-  accounts      Account[]
-  sessions      Session[]
+  tradeSignals      TradeSignal[]
+  signalOrderLinks  SignalOrderLink[]
+  accounts          Account[]
+  sessions          Session[]
 }
 
 /// NextAuth — OAuth provider account links.
