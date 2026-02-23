@@ -99,8 +99,37 @@ model TradeSignal {
   rationale   String   // Full AI reasoning text
   status      String   @default("open") // "open" | "closed" | "cancelled"
 
+  orderLinks  SignalOrderLink[]
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+/// Link between an AI TradeSignal (analytics ticket) and actual OANDA order/trade lifecycle.
+model SignalOrderLink {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  signalId     String
+  signal       TradeSignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  instrument   String
+  side         String?  // BUY | SELL
+  orderType    String?  // MARKET | LIMIT | STOP
+
+  oandaOrderId String?
+  oandaTradeId String?
+
+  status       String   @default("created") // created | filled | cancelled | rejected
+  detailsJson  String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, signalId])
+  @@index([userId, oandaOrderId])
+  @@index([userId, oandaTradeId])
 }
 
 /// Cached sentiment/impact snapshot based on recent market news headlines.

@@ -197,6 +197,7 @@
         "takeProfit": "TP",
         "rationale": "Обоснование ИИ",
         "updateStatus": "Статус",
+        "tradeThisTicket": "Торговать этот тикет",
         "clickToExpand": "Нажмите для раскрытия"
     },
     "Settings": {

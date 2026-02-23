@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 
+interface SignalOrderLink {
+    id: string;
+    status: string;
+    createdAt: string;
+}
+
 interface TradeSignal {
     id: string;
     instrument: string;
@@ -15,6 +21,7 @@ interface TradeSignal {
     rationale: string;
     status: string;
     createdAt: string;
+    orderLinks?: SignalOrderLink[];
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -34,6 +41,8 @@ export default function AnalyticsPage() {
     const router = useRouter();
     const [signals, setSignals] = useState<TradeSignal[]>([]);
     const [selected, setSelected] = useState<TradeSignal | null>(null);
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const preselectSignalId = searchParams?.get('signalId');
     const [loading, setLoading] = useState(true);
     const [filterAction, setFilterAction] = useState<string>('ALL');
     const [filterStatus, setFilterStatus] = useState<string>('ALL');
@@ -51,6 +60,12 @@ export default function AnalyticsPage() {
     };
 
     useEffect(() => { fetchSignals(); }, []);
+
+    useEffect(() => {
+        if (!preselectSignalId || signals.length === 0) return;
+        const hit = signals.find((s) => s.id === preselectSignalId);
+        if (hit) setSelected(hit);
+    }, [preselectSignalId, signals]);
 
     const filtered = signals.filter(s => {
         if (filterAction !== 'ALL' && s.action !== filterAction) return false;
@@ -118,7 +133,9 @@ export default function AnalyticsPage() {
                     {filtered.map(signal => (
                         <div key={signal.id}
                             onClick={() => setSelected(signal)}
-                            className="bg-gray-900 border border-gray-800 rounded-xl p-5 cursor-pointer hover:border-blue-700 hover:bg-gray-800/60 transition-all group">
+                            className={`bg-gray-900 border rounded-xl p-5 cursor-pointer hover:border-blue-700 hover:bg-gray-800/60 transition-all group ${
+                                (signal.orderLinks?.length || 0) > 0 ? 'border-emerald-700/60' : 'border-gray-800'
+                            }`}>
                             {/* Card Header */}
                             <div className="flex items-center justify-between mb-3">
                                 <span className="font-mono font-bold text-white text-lg">
@@ -158,8 +175,14 @@ export default function AnalyticsPage() {
                             {/* Footer */}
                             <div className="flex items-center justify-between text-xs text-gray-600">
                                 <span>{signal.timeframe}</span>
-                                <span>{new Date(signal.createdAt).toLocaleDateString()}</span>
+                                <span>{new Date(signal.createdAt).toLocaleString()}</span>
                             </div>
+
+                            {(signal.orderLinks?.length || 0) > 0 && (
+                                <div className="mt-2 text-[11px] text-emerald-400">
+                                    Orders: {signal.orderLinks?.length}
+                                </div>
+                            )}
 
                             <div className="mt-3 text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {t('clickToExpand')} →
@@ -220,7 +243,7 @@ export default function AnalyticsPage() {
                                 onClick={() => router.push(`/trading?signalId=${selected.id}`)}
                                 className="text-xs font-medium px-3 py-1.5 rounded-lg border border-emerald-700 bg-emerald-900/30 text-emerald-300 hover:bg-emerald-900/50"
                             >
-                                Торговать этот тикет
+                                {t('tradeThisTicket')}
                             </button>
                             <span className="text-xs text-gray-500">{t('updateStatus')}:</span>
                             {['open', 'closed', 'cancelled'].map(s => (

@@ -29,6 +29,11 @@ export async function GET(request: NextRequest) {
         const signals = await prisma.tradeSignal.findMany({
             where: { userId: session.user.id },
             orderBy: { createdAt: 'desc' },
+            include: {
+                orderLinks: {
+                    select: { id: true, status: true, createdAt: true },
+                },
+            },
         });
 
         return NextResponse.json({ signals });

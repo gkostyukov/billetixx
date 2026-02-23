@@ -40,6 +40,7 @@ interface TerminalOrder {
     units?: string;
     displayPrice?: string | null;
     tradeId?: string | null;
+    signalId?: string | null;
 }
 
 interface TerminalPosition {
@@ -562,7 +563,24 @@ export default function TradingDashboard() {
             if (!res.ok) return;
             const data = await res.json();
             setTrades(data?.trades || []);
-            setOrders(data?.orders || []);
+
+            // Enrich OANDA pending orders with analytics ticket links (if any).
+            const linksRes = await fetch('/api/signal-orders');
+            const linksData = linksRes.ok ? await linksRes.json() : { links: [] };
+            const orderIdToSignalId = new Map<string, string>();
+            (linksData?.links || []).forEach((link: any) => {
+                if (link?.oandaOrderId && link?.signalId) {
+                    orderIdToSignalId.set(String(link.oandaOrderId), String(link.signalId));
+                }
+            });
+
+            const rawOrders = data?.orders || [];
+            const enrichedOrders = rawOrders.map((order: any) => ({
+                ...order,
+                signalId: orderIdToSignalId.get(String(order?.id || '')) || null,
+            }));
+
+            setOrders(enrichedOrders);
             setPositions(data?.positions || []);
             setActivity(data?.activity || []);
         } catch (err) {
@@ -889,6 +907,7 @@ export default function TradingDashboard() {
                     entryPrice: orderTicket.entryPrice ? Number(orderTicket.entryPrice) : null,
                     stopLoss: orderTicket.stopLoss ? Number(orderTicket.stopLoss) : null,
                     takeProfit: orderTicket.takeProfit ? Number(orderTicket.takeProfit) : null,
+                    signalId,
                 }),
             });
 
@@ -1843,6 +1862,14 @@ export default function TradingDashboard() {
                                                 <div className="text-right leading-tight">
                                                     <p className="text-[10px] text-gray-500">price</p>
                                                     <p className="text-[11px] text-gray-200 font-mono">{item.displayPrice || '—'}</p>
+                                                    {item.signalId ? (
+                                                        <a
+                                                            className="text-[10px] text-blue-300 hover:text-blue-200"
+                                                            href={`/analytics?signalId=${item.signalId}`}
+                                                        >
+                                                            analytics
+                                                        </a>
+                                                    ) : null}
                                                 </div>
                                                 <button
                                                     onClick={() => handleCancelOrder(item.id, item.instrument)}
